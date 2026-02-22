@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/question_provider.dart';
 import 'admin_theme.dart';
 
 class AddDelQuestionsPage extends StatefulWidget {
@@ -9,46 +11,27 @@ class AddDelQuestionsPage extends StatefulWidget {
 }
 
 class _AddDelQuestionsPageState extends State<AddDelQuestionsPage> {
-  final List<Map<String, String>> _questions = [
-    {
-      'eng': 'How was the service quality?',
-      'hindi': 'सेवा की गुणवत्ता कैसी थी?',
-    },
-    {
-      'eng': 'How was the staff behavior?',
-      'hindi': 'कर्मचारियों का व्यवहार कैसा था?',
-    },
-    {
-      'eng': 'How would you rate the facilities?',
-      'hindi': 'आप सुविधाओं को कैसे रेट करेंगे?',
-    },
-    {'eng': 'How was the waiting time?', 'hindi': 'प्रतीक्षा समय कैसा था?'},
-    {'eng': 'Will you visit again?', 'hindi': 'क्या आप फिर से आएंगे?'},
-  ];
 
-  void _addQuestion() {
+
+  void _addQuestion(QuestionProvider provider) {
     showDialog(
       context: context,
       builder: (context) => _QuestionDialog(
         onSave: (eng, hindi) {
-          setState(() {
-            _questions.add({'eng': eng, 'hindi': hindi});
-          });
+          provider.addQuestion(eng, hindi);
         },
       ),
     );
   }
 
-  void _editQuestion(int index) {
+  void _editQuestion(QuestionProvider provider, int id, String eng, String hindi) {
     showDialog(
       context: context,
       builder: (context) => _QuestionDialog(
-        initialEng: _questions[index]['eng'],
-        initialHindi: _questions[index]['hindi'],
-        onSave: (eng, hindi) {
-          setState(() {
-            _questions[index] = {'eng': eng, 'hindi': hindi};
-          });
+        initialEng: eng,
+        initialHindi: hindi,
+        onSave: (newEng, newHindi) {
+          provider.editQuestion(id, newEng, newHindi);
         },
       ),
     );
@@ -56,6 +39,12 @@ class _AddDelQuestionsPageState extends State<AddDelQuestionsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<QuestionProvider>();
+    if (provider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final questions = provider.questions;
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Padding(
@@ -81,7 +70,7 @@ class _AddDelQuestionsPageState extends State<AddDelQuestionsPage> {
                   ],
                 ),
                 ElevatedButton.icon(
-                  onPressed: _addQuestion,
+                  onPressed: () => _addQuestion(provider),
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('ADD NEW'),
                   style: AdminTheme.primaryButton,
@@ -94,10 +83,11 @@ class _AddDelQuestionsPageState extends State<AddDelQuestionsPage> {
                 decoration: AdminTheme.card(),
                 child: ListView.separated(
                   padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: _questions.length,
+                  itemCount: questions.length,
                   separatorBuilder: (_, __) =>
                       const Divider(height: 1, color: AdminTheme.border),
                   itemBuilder: (_, i) {
+                    final q = questions[i];
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 20,
@@ -114,7 +104,7 @@ class _AddDelQuestionsPageState extends State<AddDelQuestionsPage> {
                         ),
                       ),
                       title: Text(
-                        _questions[i]['eng']!,
+                        q['eng'],
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -123,7 +113,7 @@ class _AddDelQuestionsPageState extends State<AddDelQuestionsPage> {
                       subtitle: Padding(
                         padding: const EdgeInsets.only(top: 4.0),
                         child: Text(
-                          _questions[i]['hindi']!,
+                          q['hindi'],
                           style: TextStyle(
                             color: AdminTheme.textMuted,
                             fontSize: 13,
@@ -138,7 +128,7 @@ class _AddDelQuestionsPageState extends State<AddDelQuestionsPage> {
                               Icons.edit_outlined,
                               color: AdminTheme.primary,
                             ),
-                            onPressed: () => _editQuestion(i),
+                            onPressed: () => _editQuestion(provider, q['id'], q['eng'], q['hindi']),
                           ),
                           IconButton(
                             icon: const Icon(
@@ -146,9 +136,7 @@ class _AddDelQuestionsPageState extends State<AddDelQuestionsPage> {
                               color: AdminTheme.danger,
                             ),
                             onPressed: () {
-                              setState(() {
-                                _questions.removeAt(i);
-                              });
+                              provider.deleteQuestion(q['id']);
                             },
                           ),
                         ],

@@ -3,30 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:kiosk/feedback/home.dart';
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:glassmorphism/glassmorphism.dart';
-import 'package:kiosk/main.dart'; // For navigation back to Home
+import 'package:kiosk/feedback/selfie.dart'; // Navigation destination, assuming selfie next
 
-class FeedBackDetails extends StatefulWidget {
-  const FeedBackDetails({super.key});
+class FeedBackRemarks extends StatefulWidget {
+  const FeedBackRemarks({super.key});
 
   @override
-  State<FeedBackDetails> createState() => _FeedBackDetailsState();
+  State<FeedBackRemarks> createState() => _FeedBackRemarksState();
 }
 
-class _FeedBackDetailsState extends State<FeedBackDetails>
+class _FeedBackRemarksState extends State<FeedBackRemarks>
     with TickerProviderStateMixin {
-  final _phoneController = TextEditingController();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _unitNumberController = TextEditingController();
-
-  final _phoneFocus = FocusNode();
-  final _firstNameFocus = FocusNode();
-  final _lastNameFocus = FocusNode();
-  final _unitNumberFocus = FocusNode();
+  final _remarkController = TextEditingController();
+  final _remarkFocus = FocusNode();
 
   FocusNode? _activeFocus;
-  TextEditingController?
-  _activeController; // Track active controller for keyboard input
+  TextEditingController? _activeController; // Track active controller for keyboard input
 
   bool _isUpperCase = false;
   bool _showNumpad = false;
@@ -34,8 +26,8 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
   late final AnimationController _entranceController;
   late final Animation<double> _headerFade;
   late final Animation<Offset> _headerSlide;
-  late final List<AnimationController> _fieldControllers;
-  late final List<Animation<double>> _fieldSlides;
+  late final AnimationController _fieldController;
+  late final Animation<double> _fieldSlide;
   late final AnimationController _keyboardController;
   late final Animation<double> _keyboardSlide;
 
@@ -73,19 +65,15 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
           ),
         );
 
-    // Staggered field entrance
-    _fieldControllers = List.generate(4, (i) {
-      return AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 500),
-      );
-    });
-    _fieldSlides = _fieldControllers.map((c) {
-      return CurvedAnimation(
-        parent: c,
-        curve: Curves.easeOutCubic,
-      ).drive(Tween(begin: 0.0, end: 1.0));
-    }).toList();
+    // Field entrance
+    _fieldController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _fieldSlide = CurvedAnimation(
+      parent: _fieldController,
+      curve: Curves.easeOutCubic,
+    ).drive(Tween(begin: 0.0, end: 1.0));
 
     // Keyboard slide up
     _keyboardController = AnimationController(
@@ -98,16 +86,7 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
     ).drive(Tween(begin: 0.0, end: 1.0));
 
     // Focus listeners
-    _phoneFocus.addListener(() => _onFocusChange(_phoneFocus, _phoneController));
-    _firstNameFocus.addListener(
-      () => _onFocusChange(_firstNameFocus, _firstNameController),
-    );
-    _lastNameFocus.addListener(
-      () => _onFocusChange(_lastNameFocus, _lastNameController),
-    );
-    _unitNumberFocus.addListener(
-      () => _onFocusChange(_unitNumberFocus, _unitNumberController),
-    );
+    _remarkFocus.addListener(() => _onFocusChange(_remarkFocus, _remarkController));
 
     _startEntrance();
   }
@@ -116,19 +95,17 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
     await Future.delayed(const Duration(milliseconds: 150));
     if (!mounted) return;
     _entranceController.forward();
-    for (int i = 0; i < _fieldControllers.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 100));
-      if (!mounted) return;
-      _fieldControllers[i].forward();
-    }
+    await Future.delayed(const Duration(milliseconds: 100));
+    if (!mounted) return;
+    _fieldController.forward();
   }
 
   void _onFocusChange(FocusNode focus, TextEditingController controller) {
     if (focus.hasFocus) {
       setState(() {
         _activeFocus = focus;
-        _activeController = controller; // Set active controller
-        _showNumpad = (focus == _phoneFocus || focus == _unitNumberFocus);
+        _activeController = controller;
+        _showNumpad = false; 
       });
       _keyboardController.forward();
     }
@@ -183,50 +160,27 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
   }
 
   void _onDone() {
-    if (_activeFocus == _phoneFocus) {
-      _firstNameFocus.requestFocus();
-    } else if (_activeFocus == _firstNameFocus) {
-      _lastNameFocus.requestFocus();
-    } else if (_activeFocus == _lastNameFocus) {
-      _unitNumberFocus.requestFocus();
-    } else {
-      _activeFocus?.unfocus();
-      _keyboardController.reverse();
-    }
+    _activeFocus?.unfocus();
+    _keyboardController.reverse();
   }
 
   void _onSubmit() {
-    if (_phoneController.text.trim().isEmpty) {
-      _phoneFocus.requestFocus();
-      return;
-    }
-    // Navigate immediately to FeedBackHome — no delay, no thank-you screen
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const FeedBackHome(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-      (route) => false,
-    );
+    // Navigate immediately to next screen 
+    _navigateTo(const TakeSelfiePage());
+  }
+  
+  void _onSkip() {
+    // Navigate immediately to next screen
+    _navigateTo(const TakeSelfiePage());
   }
 
   @override
   void dispose() {
     _entranceController.dispose();
-    for (var c in _fieldControllers) c.dispose();
+    _fieldController.dispose();
     _keyboardController.dispose();
-    _phoneController.dispose();
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _unitNumberController.dispose();
-    _phoneFocus.dispose();
-    _firstNameFocus.dispose();
-    _lastNameFocus.dispose();
-    _unitNumberFocus.dispose();
+    _remarkController.dispose();
+    _remarkFocus.dispose();
     super.dispose();
   }
 
@@ -281,14 +235,14 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                         ),
                         const SizedBox(height: 24),
                         Text(
-                          'ENTER DETAILS',
+                          'ADDITIONAL REMARKS',
                           style: FuturisticTheme.titleMedium.copyWith(
                             fontSize: 28,
                           ),
                         ),
                         const SizedBox(height: 5),
                         Text(
-                          'अपनी जानकारी दर्ज करें',
+                          'अतिरिक्त टिप्पणियाँ दें',
                           style: FuturisticTheme.body.copyWith(
                             color: Colors.white70,
                           ),
@@ -300,47 +254,21 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                 const SizedBox(height: 40),
 
                 _buildField(
-                  index: 0,
-                  controller: _phoneController,
-                  focusNode: _phoneFocus,
-                  label: 'PHONE NUMBER / फ़ोन नंबर',
-                  hint: '+91 0000000000',
-                  icon: Icons.phone_outlined,
+                  controller: _remarkController,
+                  focusNode: _remarkFocus,
+                  label: 'REMARKS / टिप्पणियाँ',
+                  hint: 'TYPE YOUR REMARKS HERE...',
+                  icon: Icons.comment_outlined,
+                  isLandscape: isLandscape,
                 ),
-                const SizedBox(height: 20),
-                _buildField(
-                  index: 1,
-                  controller: _firstNameController,
-                  focusNode: _firstNameFocus,
-                  label: 'FIRST NAME / पहला नाम',
-                  hint: 'FIRST NAME',
-                  icon: Icons.person_outline_rounded,
-                ),
-                const SizedBox(height: 20),
-                _buildField(
-                  index: 2,
-                  controller: _lastNameController,
-                  focusNode: _lastNameFocus,
-                  label: 'LAST NAME / उपनाम',
-                  hint: 'LAST NAME',
-                  icon: Icons.person_outline_rounded,
-                ),
-                const SizedBox(height: 20),
-                _buildField(
-                  index: 3,
-                  controller: _unitNumberController,
-                  focusNode: _unitNumberFocus,
-                  label: 'UNIT NUMBER / यूनिट नंबर',
-                  hint: 'UNIT NUMBER',
-                  icon: Icons.business_outlined,
-                ),
+                
                 const SizedBox(height: 40),
 
                 AnimatedOpacity(
-                  opacity: _phoneController.text.trim().isNotEmpty ? 1.0 : 0.5,
+                  opacity: _remarkController.text.trim().isNotEmpty ? 1.0 : 0.5,
                   duration: const Duration(milliseconds: 300),
                   child: GestureDetector(
-                    onTap: _onSubmit,
+                    onTap: _remarkController.text.trim().isNotEmpty ? _onSubmit : null,
                     child: GlassmorphicContainer(
                       width: isLandscape ? 300 : double.infinity,
                       height: 60,
@@ -364,6 +292,24 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                     ),
                   ),
                 ),
+                
+                const SizedBox(height: 16),
+                
+                // Skip Button
+                GestureDetector(
+                    onTap: _onSkip,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+                      child: Text(
+                        'SKIP / छोड़ें',
+                        style: FuturisticTheme.body.copyWith(
+                          fontSize: 14,
+                          color: Colors.white54,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -388,22 +334,22 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
   }
 
   Widget _buildField({
-    required int index,
     required TextEditingController controller,
     required FocusNode focusNode,
     required String label,
     required String hint,
     required IconData icon,
+    required bool isLandscape,
   }) {
     final isFocused = _activeFocus == focusNode;
 
     return FadeTransition(
-      opacity: _fieldSlides[index],
+      opacity: _fieldSlide,
       child: GestureDetector(
         onTap: () => focusNode.requestFocus(),
         child: GlassmorphicContainer(
           width: double.infinity,
-          height: 80,
+          height: isLandscape ? 120 : 160,
           borderRadius: 20,
           blur: 10,
           alignment: Alignment.center,
@@ -426,8 +372,9 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                   ],
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
                   icon,
@@ -438,7 +385,7 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                 const SizedBox(width: 20),
                 Expanded(
                   child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -450,24 +397,26 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                               : Colors.white54,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      // Hide default cursor, handle manually through keyboard if needed or trust Flutter's hidden input
-                      // Actually we use readOnly: true and custom keyboard
-                      IgnorePointer(
-                        child: TextField(
-                          controller: controller,
-                          focusNode: focusNode, // Keep focus for state
-                          readOnly: true, // Prevent system keyboard
-                          style: FuturisticTheme.body.copyWith(
-                            fontSize: 18,
-                            color: Colors.white,
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: hint,
-                            hintStyle: const TextStyle(color: Colors.white24),
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: IgnorePointer(
+                          child: TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            readOnly: true, // Prevent system keyboard
+                            maxLines: null,
+                            expands: true,
+                            style: FuturisticTheme.body.copyWith(
+                              fontSize: 18,
+                              color: Colors.white,
+                            ),
+                            decoration: InputDecoration(
+                              border: InputBorder.none,
+                              hintText: hint,
+                              hintStyle: const TextStyle(color: Colors.white24),
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
                           ),
                         ),
                       ),

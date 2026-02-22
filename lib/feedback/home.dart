@@ -3,7 +3,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:glassmorphism/glassmorphism.dart';
-import 'package:kiosk/feedback/selfie.dart'; // For selfie navigation
+import 'package:kiosk/feedback/selfie.dart';
+import 'package:kiosk/feedback/remarks.dart';
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/question_provider.dart';
 
 class FeedBackHome extends StatefulWidget {
   const FeedBackHome({super.key});
@@ -54,21 +57,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
   late List<AnimationController> _starControllers;
   late List<Animation<double>> _starAnimations;
 
-  final List<String> _questions = const [
-    'HOW WAS OUR SERVICE?',
-    'WAS THE STAFF HELPFUL?',
-    'FACILITY CONDITION?',
-    'WAITING TIME?',
-    'VISIT AGAIN?',
-  ];
 
-  final List<String> _questionsHindi = const [
-    'हमारी सेवा कैसी रही?',
-    'कर्मचारियों का व्यवहार कैसा था?',
-    'सुविधाओं की स्थिति कैसी थी?',
-    'प्रतीक्षा समय कैसा था?',
-    'क्या आप दोबारा यहाँ आना चाहेंगे?',
-  ];
 
   final List<_FeedbackOption> _options = const [
     _FeedbackOption(
@@ -103,7 +92,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
     Color(0xFFFFD700), // Gold Neon
   ];
 
-  bool get _isLastQuestion => _currentQuestion == _questions.length - 1;
+  bool _isLastQuestion(int totalCount) => _currentQuestion == totalCount - 1;
 
   @override
   void initState() {
@@ -288,7 +277,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
     _pulseController.reset();
     _pulseController.repeat(reverse: true);
 
-    if (_isLastQuestion) {
+    if (_isLastQuestion(context.read<QuestionProvider>().questions.length)) {
       _submitController.forward();
     } else {
       Future.delayed(const Duration(milliseconds: 650), () {
@@ -314,11 +303,11 @@ class _FeedBackHomeState extends State<FeedBackHome>
   void _onSubmit() {
     if (!_answers.containsKey(_currentQuestion)) return;
 
-    // Proceed to Selfie Page
+    // Proceed to Remarks Page
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const TakeSelfiePage(),
+            const FeedBackRemarks(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -383,6 +372,25 @@ class _FeedBackHomeState extends State<FeedBackHome>
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<QuestionProvider>();
+    
+    if (provider.isLoading) {
+      return Scaffold(
+        backgroundColor: FuturisticTheme.bgBlueDark,
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final questions = provider.questions;
+    if (questions.isEmpty) {
+      return Scaffold(
+        backgroundColor: FuturisticTheme.bgBlueDark,
+        body: const Center(
+          child: Text('No questions available', style: TextStyle(color: Colors.white)),
+        ),
+      );
+    }
+
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
     final emojiSize = isLandscape ? size.height * 0.22 : size.width * 0.16;
@@ -411,7 +419,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
                   ),
                 );
               },
-              child: _buildForm(size, emojiSize, isLandscape),
+              child: _buildForm(size, emojiSize, isLandscape, questions),
             ),
           ),
         ],
@@ -419,8 +427,13 @@ class _FeedBackHomeState extends State<FeedBackHome>
     );
   }
 
-  Widget _buildForm(Size size, double emojiSize, bool isLandscape) {
+  Widget _buildForm(Size size, double emojiSize, bool isLandscape, List<Map<String,dynamic>> questions) {
+    if (_currentQuestion >= questions.length) {
+       // Graceful fallback if questions list shrinks while in session
+       _currentQuestion = 0;
+    }
     final selectedForCurrent = _answers[_currentQuestion];
+    final currentQ = questions[_currentQuestion];
 
     return Center(
       key: const ValueKey('form'),
@@ -473,7 +486,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
             ),
             const SizedBox(height: 20),
 
-            _buildProgressBar(isLandscape),
+            _buildProgressBar(isLandscape, questions.length),
             SizedBox(height: isLandscape ? 30 : 24),
 
             // Question text
@@ -503,13 +516,13 @@ class _FeedBackHomeState extends State<FeedBackHome>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _questions[_currentQuestion],
+                      currentQ['eng'],
                       textAlign: TextAlign.center,
                       style: FuturisticTheme.titleMedium.copyWith(fontSize: 28),
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      _questionsHindi[_currentQuestion],
+                      currentQ['hindi'],
                       textAlign: TextAlign.center,
                       style: FuturisticTheme.body.copyWith(
                         fontSize: 20,
@@ -538,7 +551,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
             const SizedBox(height: 40),
 
             // Submit Button
-            if (_isLastQuestion)
+            if (_isLastQuestion(questions.length))
               ScaleTransition(
                 scale: _submitScale,
                 child: AnimatedOpacity(
@@ -581,10 +594,10 @@ class _FeedBackHomeState extends State<FeedBackHome>
     );
   }
 
-  Widget _buildProgressBar(bool isLandscape) {
+  Widget _buildProgressBar(bool isLandscape, int totalCount) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(_questions.length, (i) {
+      children: List.generate(totalCount, (i) {
         final isCompleted = _answers.containsKey(i);
         final isCurrent = i == _currentQuestion;
 

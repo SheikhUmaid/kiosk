@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:kiosk/admin/home.dart';
 import 'package:kiosk/feedback/home.dart';
@@ -9,11 +10,25 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:glassmorphism/glassmorphism.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/question_provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  if (Platform.isWindows || Platform.isLinux) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
   MediaKit.ensureInitialized();
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => QuestionProvider()),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -178,7 +193,7 @@ class _KioskLandingState extends State<KioskLanding>
                                 _buildWelcomeText(isLandscape, width),
                                 const SizedBox(height: 10),
                                 Text(
-                                  'SEVA ASMAKAM DHARMA',
+                                  '342 COY ASC (SUP) Type D',
                                   textAlign: TextAlign.center,
                                   style: FuturisticTheme.body.copyWith(
                                     color: FuturisticTheme.primaryGold,
