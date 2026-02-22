@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
-import 'package:camera_linux/camera_linux.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:glassmorphism/glassmorphism.dart';
 import 'package:kiosk/main.dart';
@@ -19,19 +17,16 @@ class TakeSelfiePage extends StatefulWidget {
 
 class _TakeSelfiePageState extends State<TakeSelfiePage>
     with TickerProviderStateMixin {
-  final _camera = CameraLinux();
+  int _cameraId = -1;
+  List<CameraDescription>? _cameras;
 
   // State
   bool _isCameraInitialized = false;
   bool _isCameraError = false;
   String _errorMessage = '';
 
-  // Live preview
-  Uint8List? _previewFrame;
-  Timer? _previewTimer;
-
   // Captured photo
-  Uint8List? _capturedFrame;
+  XFile? _capturedImage;
 
   // Animations
   late AnimationController _scanController;
@@ -90,14 +85,34 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
 
   Future<void> _initializeCamera() async {
     try {
-      await _camera.initializeCamera();
+      _cameras = await CameraPlatform.instance.availableCameras();
+      if (_cameras == null || _cameras!.isEmpty) {
+        throw Exception('No cameras available');
+      }
+
+      // Use the first available camera (usually front-facing)
+      final camera = _cameras![0];
+      
+      const mediaSettings = MediaSettings(
+        resolutionPreset: ResolutionPreset.medium,
+        fps: 15,
+        videoBitrate: 200000,
+        audioBitrate: 32000,
+        enableAudio: false,
+      );
+
+      _cameraId = await CameraPlatform.instance.createCameraWithSettings(
+        camera,
+        mediaSettings,
+      );
+
+      await CameraPlatform.instance.initializeCamera(_cameraId);
       // Give the camera a moment to warm up
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted) return;
 
       setState(() => _isCameraInitialized = true);
       _entranceController.forward();
-      _startPreview();
     } catch (e) {
       debugPrint('Camera init error: $e');
       if (mounted) {
@@ -110,46 +125,16 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
     }
   }
 
-  /// Poll frames at ~20 fps for live preview
-  void _startPreview() {
-    _previewTimer = Timer.periodic(const Duration(milliseconds: 50), (_) async {
-      if (!mounted || _capturedFrame != null) return;
-      try {
-        final base64Str = await _camera.captureImage();
-        final bytes = _decodeBase64(base64Str);
-        if (bytes.isNotEmpty && mounted) {
-          setState(() => _previewFrame = bytes);
-        }
-      } catch (_) {}
-    });
-  }
-
-  void _stopPreview() {
-    _previewTimer?.cancel();
-    _previewTimer = null;
-  }
-
-  Uint8List _decodeBase64(String base64Url) {
-    // Reverse the URL-safe encoding applied by camera_linux
-    String base64Std = base64Url.replaceAll('-', '+').replaceAll('_', '/');
-    // Pad to multiple of 4
-    final rem = base64Std.length % 4;
-    if (rem != 0) base64Std += '=' * (4 - rem);
-    try {
-      return base64Decode(base64Std);
-    } catch (_) {
-      return Uint8List(0);
-    }
-  }
-
   Future<void> _captureImage() async {
     try {
-      final base64Str = await _camera.captureImage();
-      final bytes = _decodeBase64(base64Str);
-      if (bytes.isNotEmpty) {
-        _stopPreview();
-        setState(() => _capturedFrame = bytes);
+      if (_cameraId < 0) {
+        return;
       }
+      final XFile image = await CameraPlatform.instance.takePicture(_cameraId);
+      if (!mounted) return;
+      setState(() {
+        _capturedImage = image;
+      });
     } catch (e) {
       debugPrint('Capture error: $e');
     }
@@ -157,15 +142,13 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
 
   void _retake() {
     setState(() {
-      _capturedFrame = null;
-      _previewFrame = null;
+      _capturedImage = null;
     });
-    _startPreview();
   }
 
   Future<void> _submit() async {
-    final frame = _capturedFrame;
-    if (frame == null) return;
+    final image = _capturedImage;
+    if (image == null) return;
 
     try {
       final directory = await getApplicationDocumentsDirectory();
@@ -173,7 +156,8 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
           'Kiosk_Selfie_${DateTime.now().millisecondsSinceEpoch}.jpg';
       final String filePath = '${directory.path}/$fileName';
 
-      await File(filePath).writeAsBytes(frame);
+      // Copy the captured image to the desired location
+      await File(image.path).copy(filePath);
       debugPrint('Selfie saved to $filePath');
 
       if (mounted) {
@@ -216,9 +200,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
 
   /// Skip selfie — just go back to landing
   void _skip() {
-    // Stop the frame-polling timer immediately so no more setState calls happen
-    _stopPreview();
-    // Navigate — dispose() will call stopCamera() once the widget is removed
+    // Navigate — dispose() will call dispose on controller once the widget is removed
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -233,8 +215,9 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
 
   @override
   void dispose() {
-    _stopPreview();
-    _camera.stopCamera();
+    if (_cameraId >= 0) {
+      CameraPlatform.instance.dispose(_cameraId);
+    }
     _scanController.dispose();
     _pulseController.dispose();
     _entranceController.dispose();
@@ -313,12 +296,12 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
           children: [
             // Title
             Text(
-              _capturedFrame == null ? 'CAPTURE PHOTO' : 'CONFIRM PHOTO',
+              _capturedImage == null ? 'CAPTURE PHOTO' : 'CONFIRM PHOTO',
               style: FuturisticTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              _capturedFrame == null
+              _capturedImage == null
                   ? 'कृपया अपनी फोटो लें'
                   : 'कृपया फोटो की पुष्टि करें',
               style: FuturisticTheme.body.copyWith(color: Colors.white70),
@@ -352,7 +335,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
                     _buildPreviewContent(),
 
                     // Scanning overlay (preview only)
-                    if (_capturedFrame == null)
+                    if (_capturedImage == null)
                       AnimatedBuilder(
                         animation: _scanAnimation,
                         builder: (context, _) => CustomPaint(
@@ -371,7 +354,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
                     ),
 
                     // "LIVE" badge
-                    if (_capturedFrame == null)
+                    if (_capturedImage == null)
                       Positioned(
                         top: 12,
                         left: 12,
@@ -417,7 +400,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
             const SizedBox(height: 36),
 
             // Controls
-            if (_capturedFrame == null)
+            if (_capturedImage == null)
               _buildCaptureButton()
             else
               _buildConfirmButtons(),
@@ -443,17 +426,18 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
   }
 
   Widget _buildPreviewContent() {
-    final displayBytes = _capturedFrame ?? _previewFrame;
-
-    if (displayBytes != null && displayBytes.isNotEmpty) {
-      return Image.memory(
-        displayBytes,
+    if (_capturedImage != null) {
+      return Image.file(
+        File(_capturedImage!.path),
         fit: BoxFit.cover,
-        gaplessPlayback: true, // Prevents flicker during live preview
       );
     }
 
-    // Show placeholder while waiting for first frame
+    if (_isCameraInitialized && _cameraId >= 0) {
+      return CameraPlatform.instance.buildPreview(_cameraId);
+    }
+
+    // Show placeholder while waiting for camera initialization
     return Container(
       color: Colors.black,
       child: Center(

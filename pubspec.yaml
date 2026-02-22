@@ -41,9 +41,9 @@ dependencies:
   glassmorphism: ^3.0.0
   animated_text_kit: ^4.2.2
   camera: ^0.10.5+9
-  camera_linux: ^0.0.8 # Required for Linux support
   path_provider: ^2.1.2
   path: ^1.9.0
+  camera_windows: ^0.2.6+4
 
 dev_dependencies:
   flutter_test:
