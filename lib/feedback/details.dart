@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:kiosk/feedback/home.dart';
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:glassmorphism/glassmorphism.dart';
-import 'package:kiosk/feedback/selfie.dart';
 import 'package:kiosk/main.dart'; // For navigation back to Home
 
 class FeedBackDetails extends StatefulWidget {
@@ -29,7 +28,6 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
 
   bool _isUpperCase = false;
   bool _showNumpad = false;
-  bool _submitted = false;
 
   late final AnimationController _entranceController;
   late final Animation<double> _headerFade;
@@ -38,10 +36,6 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
   late final List<Animation<double>> _fieldSlides;
   late final AnimationController _keyboardController;
   late final Animation<double> _keyboardSlide;
-
-  // For thank you animation
-  late final AnimationController _celebrationController;
-  late final Animation<double> _celebrationScale;
 
   void _navigateTo(Widget page) {
     Navigator.of(context).pushAndRemoveUntil(
@@ -100,15 +94,6 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
       parent: _keyboardController,
       curve: Curves.easeOutCubic,
     ).drive(Tween(begin: 0.0, end: 1.0));
-
-    _celebrationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _celebrationScale = CurvedAnimation(
-      parent: _celebrationController,
-      curve: Curves.elasticOut,
-    );
 
     // Focus listeners
     _nameFocus.addListener(() => _onFocusChange(_nameFocus, _nameController));
@@ -208,24 +193,18 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
       _nameFocus.requestFocus();
       return;
     }
-
-    setState(() => _submitted = true);
-    _celebrationController.forward();
-
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        Navigator.of(context).push(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const TakeSelfiePage(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
-          ),
-        );
-      }
-    });
+    // Navigate immediately to FeedBackHome — no delay, no thank-you screen
+    Navigator.of(context).pushAndRemoveUntil(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const FeedBackHome(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+      (route) => false,
+    );
   }
 
   @override
@@ -233,7 +212,6 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
     _entranceController.dispose();
     for (var c in _fieldControllers) c.dispose();
     _keyboardController.dispose();
-    _celebrationController.dispose();
     _nameController.dispose();
     _accountController.dispose();
     _phoneController.dispose();
@@ -254,68 +232,8 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
         children: [
           // Grid Background
           Positioned.fill(child: CustomPaint(painter: GridPainter())),
-
-          SafeArea(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 500),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              child: _submitted
-                  ? _buildThankYou()
-                  : _buildForm(size, isLandscape),
-            ),
-          ),
+          SafeArea(child: _buildForm(size, isLandscape)),
         ],
-      ),
-    );
-  }
-
-  Widget _buildThankYou() {
-    return Center(
-      key: const ValueKey('thankyou'),
-      child: ScaleTransition(
-        scale: _celebrationScale,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GlassmorphicContainer(
-              width: 150,
-              height: 150,
-              borderRadius: 75,
-              blur: 20,
-              alignment: Alignment.center,
-              border: 2,
-              linearGradient: LinearGradient(
-                colors: [
-                  Colors.white.withOpacity(0.1),
-                  Colors.white.withOpacity(0.01),
-                ],
-              ),
-              borderGradient: LinearGradient(
-                colors: [
-                  FuturisticTheme.primaryGold,
-                  Colors.white.withOpacity(0.1),
-                ],
-              ),
-              child: Icon(
-                Icons.check_rounded,
-                color: FuturisticTheme.primaryGold,
-                size: 80,
-              ),
-            ),
-            const SizedBox(height: 32),
-            Text(
-              'THANK YOU',
-              style: FuturisticTheme.titleLarge.copyWith(
-                color: FuturisticTheme.primaryGold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Text('धन्यवाद!', style: FuturisticTheme.titleMedium),
-            const SizedBox(height: 12),
-            Text('SUBMISSION SUCCESSFUL', style: FuturisticTheme.body),
-          ],
-        ),
       ),
     );
   }

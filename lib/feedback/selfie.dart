@@ -1,10 +1,14 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
-import 'package:camera/camera.dart';
+import 'dart:typed_data';
+
+import 'package:camera_linux/camera_linux.dart';
 import 'package:flutter/material.dart';
-import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:glassmorphism/glassmorphism.dart';
+import 'package:kiosk/main.dart';
+import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:kiosk/main.dart'; // For navigation
 
 class TakeSelfiePage extends StatefulWidget {
   const TakeSelfiePage({super.key});
@@ -15,20 +19,38 @@ class TakeSelfiePage extends StatefulWidget {
 
 class _TakeSelfiePageState extends State<TakeSelfiePage>
     with TickerProviderStateMixin {
-  CameraController? _controller;
-  XFile? _imageFile;
+  final _camera = CameraLinux();
+
+  // State
   bool _isCameraInitialized = false;
+  bool _isCameraError = false;
+  String _errorMessage = '';
+
+  // Live preview
+  Uint8List? _previewFrame;
+  Timer? _previewTimer;
+
+  // Captured photo
+  Uint8List? _capturedFrame;
 
   // Animations
   late AnimationController _scanController;
   late Animation<double> _scanAnimation;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+  late AnimationController _entranceController;
+  late Animation<double> _entranceFade;
+  late Animation<Offset> _entranceSlide;
 
   @override
   void initState() {
     super.initState();
+    _initAnimations();
     _initializeCamera();
+  }
 
-    // Scan line animation
+  void _initAnimations() {
+    // Scan line
     _scanController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -37,86 +59,133 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
     _scanAnimation = Tween<double>(begin: -1.0, end: 1.0).animate(
       CurvedAnimation(parent: _scanController, curve: Curves.easeInOut),
     );
+
+    // Pulse on capture button
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.12).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    // Entrance
+    _entranceController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _entranceFade = CurvedAnimation(
+      parent: _entranceController,
+      curve: Curves.easeOut,
+    );
+    _entranceSlide =
+        Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(
+          CurvedAnimation(
+            parent: _entranceController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isEmpty) {
-      debugPrint("No cameras found");
-      return;
+    try {
+      await _camera.initializeCamera();
+      // Give the camera a moment to warm up
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (!mounted) return;
+
+      setState(() => _isCameraInitialized = true);
+      _entranceController.forward();
+      _startPreview();
+    } catch (e) {
+      debugPrint('Camera init error: $e');
+      if (mounted) {
+        setState(() {
+          _isCameraError = true;
+          _errorMessage = e.toString();
+        });
+        _entranceController.forward();
+      }
     }
+  }
 
-    for (var camera in cameras) {
-      print("Name: ${camera.name}");
-      print("Lens: ${camera.lensDirection}");
-      print("Sensor: ${camera.sensorOrientation}");
-    }
-    // Default to front camera if available, else first
-    final firstCamera = cameras.firstWhere(
-      (camera) => camera.lensDirection == CameraLensDirection.front,
-      orElse: () => cameras.first,
-    );
+  /// Poll frames at ~20 fps for live preview
+  void _startPreview() {
+    _previewTimer = Timer.periodic(const Duration(milliseconds: 50), (_) async {
+      if (!mounted || _capturedFrame != null) return;
+      try {
+        final base64Str = await _camera.captureImage();
+        final bytes = _decodeBase64(base64Str);
+        if (bytes.isNotEmpty && mounted) {
+          setState(() => _previewFrame = bytes);
+        }
+      } catch (_) {}
+    });
+  }
 
-    _controller = CameraController(
-      firstCamera,
-      ResolutionPreset.high,
-      enableAudio: false,
-    );
+  void _stopPreview() {
+    _previewTimer?.cancel();
+    _previewTimer = null;
+  }
 
-    await _controller!.initialize();
-    if (mounted) {
-      setState(() {
-        _isCameraInitialized = true;
-      });
+  Uint8List _decodeBase64(String base64Url) {
+    // Reverse the URL-safe encoding applied by camera_linux
+    String base64Std = base64Url.replaceAll('-', '+').replaceAll('_', '/');
+    // Pad to multiple of 4
+    final rem = base64Std.length % 4;
+    if (rem != 0) base64Std += '=' * (4 - rem);
+    try {
+      return base64Decode(base64Std);
+    } catch (_) {
+      return Uint8List(0);
     }
   }
 
   Future<void> _captureImage() async {
-    if (_controller == null || !_controller!.value.isInitialized) return;
-    if (_controller!.value.isTakingPicture) return;
-
     try {
-      final XFile file = await _controller!.takePicture();
-      setState(() {
-        _imageFile = file;
-      });
+      final base64Str = await _camera.captureImage();
+      final bytes = _decodeBase64(base64Str);
+      if (bytes.isNotEmpty) {
+        _stopPreview();
+        setState(() => _capturedFrame = bytes);
+      }
     } catch (e) {
-      print(e);
+      debugPrint('Capture error: $e');
     }
   }
 
   void _retake() {
     setState(() {
-      _imageFile = null;
+      _capturedFrame = null;
+      _previewFrame = null;
     });
+    _startPreview();
   }
 
-  void _submit() async {
-    if (_imageFile == null) return;
+  Future<void> _submit() async {
+    final frame = _capturedFrame;
+    if (frame == null) return;
 
     try {
-      // Get the Application Documents directory
       final directory = await getApplicationDocumentsDirectory();
-      final String path = directory.path;
       final String fileName =
           'Kiosk_Selfie_${DateTime.now().millisecondsSinceEpoch}.jpg';
-      final String newPath = '$path/$fileName';
+      final String filePath = '${directory.path}/$fileName';
 
-      // Copy the file to the new path
-      await File(_imageFile!.path).copy(newPath);
-      print('Image saved to $newPath');
+      await File(filePath).writeAsBytes(frame);
+      debugPrint('Selfie saved to $filePath');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Image Saved to $newPath'),
+            content: Text('Photo saved: $fileName'),
             backgroundColor: FuturisticTheme.primaryGold,
             duration: const Duration(seconds: 2),
           ),
         );
       }
 
-      // Wait for snackbar
       await Future.delayed(const Duration(seconds: 2));
 
       if (mounted) {
@@ -125,19 +194,19 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
             pageBuilder: (context, animation, secondaryAnimation) =>
                 const KioskLanding(),
             transitionsBuilder:
-                (context, animation, secondaryAnimation, child) {
-                  return FadeTransition(opacity: animation, child: child);
-                },
+                (context, animation, secondaryAnimation, child) =>
+                    FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 500),
           ),
           (route) => false,
         );
       }
     } catch (e) {
-      print('Error saving image: $e');
+      debugPrint('Save error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to save image'),
+            content: Text('Failed to save photo'),
             backgroundColor: Colors.red,
           ),
         );
@@ -145,24 +214,35 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
     }
   }
 
+  /// Skip selfie — just go back to landing
+  void _skip() {
+    // Stop the frame-polling timer immediately so no more setState calls happen
+    _stopPreview();
+    // Navigate — dispose() will call stopCamera() once the widget is removed
+    Navigator.of(context).pushAndRemoveUntil(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const KioskLanding(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+            FadeTransition(opacity: animation, child: child),
+        transitionDuration: const Duration(milliseconds: 500),
+      ),
+      (route) => false,
+    );
+  }
+
   @override
   void dispose() {
-    _controller?.dispose();
+    _stopPreview();
+    _camera.stopCamera();
     _scanController.dispose();
+    _pulseController.dispose();
+    _entranceController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_isCameraInitialized) {
-      return const Scaffold(
-        backgroundColor: FuturisticTheme.bgDark,
-        body: Center(
-          child: CircularProgressIndicator(color: FuturisticTheme.primaryGold),
-        ),
-      );
-    }
-
     final size = MediaQuery.of(context).size;
     final isLandscape = size.width > size.height;
 
@@ -173,190 +253,410 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
           // Grid Background
           Positioned.fill(child: CustomPaint(painter: GridPainter())),
 
-          Center(
-            child: SingleChildScrollView(
+          // Loading state
+          if (!_isCameraInitialized && !_isCameraError)
+            Center(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
                 children: [
+                  CircularProgressIndicator(
+                    color: FuturisticTheme.primaryGold,
+                    strokeWidth: 2,
+                  ),
+                  const SizedBox(height: 20),
                   Text(
-                    _imageFile == null ? 'CAPTURE PHOTO' : 'CONFIRM PHOTO',
-                    style: FuturisticTheme.titleMedium,
+                    'INITIALIZING CAMERA...',
+                    style: FuturisticTheme.body.copyWith(
+                      color: FuturisticTheme.primaryGold,
+                      letterSpacing: 2,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _imageFile == null
-                        ? 'कृपया अपनी फोटो लें'
-                        : 'कृपया फोटो की पुष्टि करें',
-                    style: FuturisticTheme.body.copyWith(color: Colors.white70),
+                    'कैमरा प्रारंभ हो रहा है...',
+                    style: FuturisticTheme.body.copyWith(color: Colors.white54),
                   ),
-                  const SizedBox(height: 30),
-
-                  // Camera Preview Frame
-                  Container(
-                    width: isLandscape ? size.height * 0.6 : size.width * 0.8,
-                    height: isLandscape
-                        ? size.height * 0.6
-                        : size.width * 0.8 * 1.33,
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: FuturisticTheme.primaryGold.withOpacity(0.3),
-                        width: 1,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: FuturisticTheme.primaryGold.withOpacity(0.1),
-                          blurRadius: 20,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(19),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          // The actual camera/image
-                          _imageFile != null
-                              ? Image.file(
-                                  File(_imageFile!.path),
-                                  fit: BoxFit.cover,
-                                )
-                              : CameraPreview(_controller!),
-
-                          // Scanning overlay
-                          if (_imageFile == null)
-                            AnimatedBuilder(
-                              animation: _scanAnimation,
-                              builder: (context, child) {
-                                return CustomPaint(
-                                  painter: ScannerPainter(
-                                    progress: _scanAnimation.value,
-                                    color: FuturisticTheme.primaryGold,
-                                  ),
-                                );
-                              },
-                            ),
-
-                          // Corner Brackets
-                          CustomPaint(
-                            painter: CornerBracketPainter(
-                              color: FuturisticTheme.primaryGold,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 40),
-
-                  // Controls
-                  if (_imageFile == null)
-                    GestureDetector(
-                      onTap: _captureImage,
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: FuturisticTheme.primaryGold,
-                            width: 4,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: FuturisticTheme.primaryGold.withOpacity(
-                                0.5,
-                              ),
-                              blurRadius: 20,
-                              spreadRadius: 2,
-                            ),
-                          ],
-                        ),
-                        child: Container(
-                          margin: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    )
-                  else
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Retake
-                        GestureDetector(
-                          onTap: _retake,
-                          child: GlassmorphicContainer(
-                            width: 160,
-                            height: 50,
-                            borderRadius: 25,
-                            blur: 20,
-                            alignment: Alignment.center,
-                            border: 2,
-                            linearGradient: LinearGradient(
-                              colors: [
-                                Colors.white.withOpacity(0.1),
-                                Colors.white.withOpacity(0.01),
-                              ],
-                            ),
-                            borderGradient: LinearGradient(
-                              colors: [
-                                Colors.white.withOpacity(0.5),
-                                Colors.white.withOpacity(0.1),
-                              ],
-                            ),
-                            child: Text(
-                              'RETAKE / फिर से',
-                              style: FuturisticTheme.body,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 30),
-                        // Submit
-                        GestureDetector(
-                          onTap: _submit,
-                          child: GlassmorphicContainer(
-                            width: 160,
-                            height: 50,
-                            borderRadius: 25,
-                            blur: 20,
-                            alignment: Alignment.center,
-                            border: 2,
-                            linearGradient: LinearGradient(
-                              colors: [
-                                FuturisticTheme.primaryGold.withOpacity(0.3),
-                                FuturisticTheme.primaryGold.withOpacity(0.1),
-                              ],
-                            ),
-                            borderGradient: LinearGradient(
-                              colors: [
-                                FuturisticTheme.primaryGold,
-                                FuturisticTheme.primaryGold.withOpacity(0.5),
-                              ],
-                            ),
-                            child: Text(
-                              'SUBMIT / जमा करें',
-                              style: FuturisticTheme.buttonText.copyWith(
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
                 ],
               ),
             ),
-          ),
+
+          // Error state
+          if (_isCameraError)
+            FadeTransition(
+              opacity: _entranceFade,
+              child: _buildErrorState(size, isLandscape),
+            ),
+
+          // Camera ready state
+          if (_isCameraInitialized && !_isCameraError)
+            FadeTransition(
+              opacity: _entranceFade,
+              child: SlideTransition(
+                position: _entranceSlide,
+                child: _buildCameraUI(size, isLandscape),
+              ),
+            ),
         ],
       ),
     );
   }
+
+  Widget _buildCameraUI(Size size, bool isLandscape) {
+    final previewWidth = isLandscape ? size.height * 0.65 : size.width * 0.85;
+    final previewHeight = previewWidth * 0.75; // 4:3 ratio
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Title
+            Text(
+              _capturedFrame == null ? 'CAPTURE PHOTO' : 'CONFIRM PHOTO',
+              style: FuturisticTheme.titleMedium,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _capturedFrame == null
+                  ? 'कृपया अपनी फोटो लें'
+                  : 'कृपया फोटो की पुष्टि करें',
+              style: FuturisticTheme.body.copyWith(color: Colors.white70),
+            ),
+            const SizedBox(height: 24),
+
+            // Camera Frame
+            Container(
+              width: previewWidth,
+              height: previewHeight,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: FuturisticTheme.primaryGold.withOpacity(0.4),
+                  width: 1.5,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: FuturisticTheme.primaryGold.withOpacity(0.12),
+                    blurRadius: 30,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Preview / Captured image
+                    _buildPreviewContent(),
+
+                    // Scanning overlay (preview only)
+                    if (_capturedFrame == null)
+                      AnimatedBuilder(
+                        animation: _scanAnimation,
+                        builder: (context, _) => CustomPaint(
+                          painter: ScannerPainter(
+                            progress: _scanAnimation.value,
+                            color: FuturisticTheme.primaryGold,
+                          ),
+                        ),
+                      ),
+
+                    // Corner brackets
+                    CustomPaint(
+                      painter: CornerBracketPainter(
+                        color: FuturisticTheme.primaryGold,
+                      ),
+                    ),
+
+                    // "LIVE" badge
+                    if (_capturedFrame == null)
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.8),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'LIVE',
+                                style: FuturisticTheme.body.copyWith(
+                                  fontSize: 11,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 36),
+
+            // Controls
+            if (_capturedFrame == null)
+              _buildCaptureButton()
+            else
+              _buildConfirmButtons(),
+
+            const SizedBox(height: 20),
+
+            // Skip button
+            TextButton(
+              onPressed: _skip,
+              child: Text(
+                'SKIP / छोड़ें',
+                style: FuturisticTheme.body.copyWith(
+                  color: Colors.white38,
+                  fontSize: 13,
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewContent() {
+    final displayBytes = _capturedFrame ?? _previewFrame;
+
+    if (displayBytes != null && displayBytes.isNotEmpty) {
+      return Image.memory(
+        displayBytes,
+        fit: BoxFit.cover,
+        gaplessPlayback: true, // Prevents flicker during live preview
+      );
+    }
+
+    // Show placeholder while waiting for first frame
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.camera_alt_outlined,
+              color: FuturisticTheme.primaryGold.withOpacity(0.4),
+              size: 48,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'LOADING PREVIEW...',
+              style: FuturisticTheme.body.copyWith(
+                color: Colors.white24,
+                fontSize: 12,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCaptureButton() {
+    return AnimatedBuilder(
+      animation: _pulseAnimation,
+      builder: (context, child) =>
+          Transform.scale(scale: _pulseAnimation.value, child: child),
+      child: GestureDetector(
+        onTap: _captureImage,
+        child: Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: FuturisticTheme.primaryGold, width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: FuturisticTheme.primaryGold.withOpacity(0.5),
+                blurRadius: 24,
+                spreadRadius: 4,
+              ),
+            ],
+          ),
+          child: Container(
+            margin: const EdgeInsets.all(5),
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmButtons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Retake
+        GestureDetector(
+          onTap: _retake,
+          child: GlassmorphicContainer(
+            width: 160,
+            height: 50,
+            borderRadius: 25,
+            blur: 20,
+            alignment: Alignment.center,
+            border: 2,
+            linearGradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.1),
+                Colors.white.withOpacity(0.01),
+              ],
+            ),
+            borderGradient: LinearGradient(
+              colors: [
+                Colors.white.withOpacity(0.5),
+                Colors.white.withOpacity(0.1),
+              ],
+            ),
+            child: Text('RETAKE / फिर से', style: FuturisticTheme.body),
+          ),
+        ),
+        const SizedBox(width: 30),
+        // Submit
+        GestureDetector(
+          onTap: _submit,
+          child: GlassmorphicContainer(
+            width: 160,
+            height: 50,
+            borderRadius: 25,
+            blur: 20,
+            alignment: Alignment.center,
+            border: 2,
+            linearGradient: LinearGradient(
+              colors: [
+                FuturisticTheme.primaryGold.withOpacity(0.3),
+                FuturisticTheme.primaryGold.withOpacity(0.1),
+              ],
+            ),
+            borderGradient: LinearGradient(
+              colors: [
+                FuturisticTheme.primaryGold,
+                FuturisticTheme.primaryGold.withOpacity(0.5),
+              ],
+            ),
+            child: Text(
+              'SUBMIT / जमा करें',
+              style: FuturisticTheme.buttonText.copyWith(color: Colors.white),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorState(Size size, bool isLandscape) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GlassmorphicContainer(
+              width: 120,
+              height: 120,
+              borderRadius: 60,
+              blur: 20,
+              alignment: Alignment.center,
+              border: 2,
+              linearGradient: LinearGradient(
+                colors: [
+                  Colors.red.withOpacity(0.2),
+                  Colors.red.withOpacity(0.05),
+                ],
+              ),
+              borderGradient: LinearGradient(
+                colors: [
+                  Colors.red.withOpacity(0.6),
+                  Colors.red.withOpacity(0.2),
+                ],
+              ),
+              child: const Icon(
+                Icons.no_photography_outlined,
+                color: Colors.redAccent,
+                size: 52,
+              ),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              'CAMERA UNAVAILABLE',
+              style: FuturisticTheme.titleMedium.copyWith(
+                color: Colors.redAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'कैमरा उपलब्ध नहीं है',
+              style: FuturisticTheme.body.copyWith(color: Colors.white54),
+            ),
+            const SizedBox(height: 40),
+            GestureDetector(
+              onTap: _skip,
+              child: GlassmorphicContainer(
+                width: 220,
+                height: 55,
+                borderRadius: 28,
+                blur: 20,
+                alignment: Alignment.center,
+                border: 2,
+                linearGradient: LinearGradient(
+                  colors: [
+                    FuturisticTheme.primaryGold.withOpacity(0.2),
+                    FuturisticTheme.primaryGold.withOpacity(0.05),
+                  ],
+                ),
+                borderGradient: LinearGradient(
+                  colors: [
+                    FuturisticTheme.primaryGold,
+                    FuturisticTheme.primaryGold.withOpacity(0.4),
+                  ],
+                ),
+                child: Text(
+                  'CONTINUE / जारी रखें',
+                  style: FuturisticTheme.buttonText,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
+
+// ─────────────────────────────────────────────────────────
+// Painters
+// ─────────────────────────────────────────────────────────
 
 class ScannerPainter extends CustomPainter {
   final double progress;
@@ -366,23 +666,20 @@ class ScannerPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withOpacity(0.5)
+    final y = (progress + 1) / 2 * size.height;
+    if (y < 0 || y > size.height) return;
+
+    final linePaint = Paint()
+      ..color = color.withOpacity(0.6)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
+      ..strokeWidth = 1.5;
+    canvas.drawLine(Offset(0, y), Offset(size.width, y), linePaint);
 
-    final y = (progress + 1) / 2 * size.height; // Map -1..1 to 0..height
-
-    if (y >= 0 && y <= size.height) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-
-      // Glow
-      final glowPaint = Paint()
-        ..color = color.withOpacity(0.2)
-        ..style = PaintingStyle.fill
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 10);
-      canvas.drawRect(Rect.fromLTWH(0, y - 2, size.width, 4), glowPaint);
-    }
+    final glowPaint = Paint()
+      ..color = color.withOpacity(0.15)
+      ..style = PaintingStyle.fill
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+    canvas.drawRect(Rect.fromLTWH(0, y - 4, size.width, 8), glowPaint);
   }
 
   @override
@@ -399,9 +696,10 @@ class CornerBracketPainter extends CustomPainter {
     final paint = Paint()
       ..color = color
       ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    final length = 30.0;
+    const length = 28.0;
 
     // Top Left
     canvas.drawPath(

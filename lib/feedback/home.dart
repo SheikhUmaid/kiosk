@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:glassmorphism/glassmorphism.dart';
-import 'package:kiosk/feedback/details.dart'; // Ensure correct navigation
+import 'package:kiosk/feedback/selfie.dart'; // For selfie navigation
 
 class FeedBackHome extends StatefulWidget {
   const FeedBackHome({super.key});
@@ -314,11 +314,11 @@ class _FeedBackHomeState extends State<FeedBackHome>
   void _onSubmit() {
     if (!_answers.containsKey(_currentQuestion)) return;
 
-    // Proceed to Details Page (Name input)
+    // Proceed to Selfie Page
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const FeedBackDetails(), // We need to import details
+            const TakeSelfiePage(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

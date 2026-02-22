@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:kiosk/admin/home.dart';
 import 'package:kiosk/feedback/home.dart';
+import 'package:kiosk/feedback/details.dart';
 import 'package:kiosk/feedback/selfie.dart';
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:media_kit/media_kit.dart';
@@ -29,7 +30,7 @@ class MyApp extends StatelessWidget {
         primaryColor: FuturisticTheme.primaryGold,
         useMaterial3: true,
       ),
-      home: const TakeSelfiePage(),
+      home: const KioskLanding(),
     );
   }
 }
@@ -168,7 +169,7 @@ class _KioskLandingState extends State<KioskLanding>
                             icon: Icons.rate_review_outlined,
                             label: 'FEEDBACK',
                             sublabel: 'प्रतिक्रिया',
-                            onTap: () => _navigateTo(const FeedBackHome()),
+                            onTap: () => _navigateTo(const FeedBackDetails()),
                           ),
                         ),
                       ),

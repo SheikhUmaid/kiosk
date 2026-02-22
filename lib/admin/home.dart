@@ -1,5 +1,15 @@
-import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'package:flutter/material.dart';
+import 'admin_theme.dart';
+import 'feed_list.dart';
+import 'statistics.dart';
+import 'download.dart';
+import 'changepwd.dart';
+import 'add_del_questions.dart';
+
+// ═══════════════════════════════════════════════════════════════════
+// Admin Home — Sidebar + routed content
+// ═══════════════════════════════════════════════════════════════════
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -8,237 +18,329 @@ class AdminHome extends StatefulWidget {
   State<AdminHome> createState() => _AdminHomeState();
 }
 
-class _AdminHomeState extends State<AdminHome> with TickerProviderStateMixin {
-  late final AnimationController _entranceController;
-  late final List<Animation<double>> _cardFades;
-  late final List<Animation<Offset>> _cardSlides;
+class _AdminHomeState extends State<AdminHome> {
+  int _selectedIndex = 0;
 
-  // Chart animation
-  late final AnimationController _chartController;
-  late final Animation<double> _chartProgress;
-
-  // Tab selection
-  int _selectedTab = 0;
-
-  // Demo data
-  static const _totalFeedbacks = 1247;
-  static const _todayCount = 38;
-  static const _avgRating = 4.2;
-  static const _satisfactionPct = 87;
-
-  // Rating distribution (1–5 stars)
-  static const _ratingDistribution = [42, 78, 198, 412, 517];
-
-  // Per-question averages
-  static const _questionLabels = [
-    'सेवा गुणवत्ता',
-    'कर्मचारी व्यवहार',
-    'सुविधाएँ',
-    'प्रतीक्षा समय',
-    'पुनः आगमन',
-  ];
-  static const _questionScores = [4.1, 4.4, 3.8, 3.6, 4.6];
-
-  // Weekly trend (last 7 days)
-  static const _weeklyLabels = [
-    'सोम',
-    'मंगल',
-    'बुध',
-    'गुरु',
-    'शुक्र',
-    'शनि',
-    'रवि',
-  ];
-  static const _weeklyData = [28, 35, 22, 41, 38, 45, 38];
-  static const _weeklyAvgRating = [3.9, 4.1, 4.0, 4.3, 4.2, 4.5, 4.2];
-
-  // Recent feedbacks
-  static const _recentFeedbacks = [
-    _DemoFeedback('राम कुमार', 5, '10:42 AM', 'बहुत बढ़िया सेवा'),
-    _DemoFeedback('सीता देवी', 4, '10:28 AM', 'अच्छा अनुभव'),
-    _DemoFeedback('अजय सिंह', 3, '10:15 AM', 'ठीक-ठाक'),
-    _DemoFeedback('प्रिया शर्मा', 5, '09:58 AM', 'बहुत संतुष्ट'),
-    _DemoFeedback('विजय पटेल', 2, '09:41 AM', 'सुधार आवश्यक'),
-    _DemoFeedback('मीना गुप्ता', 4, '09:30 AM', 'अच्छी सेवा'),
-    _DemoFeedback('रोहित वर्मा', 5, '09:12 AM', 'उत्कृष्ट'),
-    _DemoFeedback('अनीता यादव', 4, '08:55 AM', 'संतोषजनक'),
+  static const _navItems = <_NavItem>[
+    _NavItem(
+      Icons.dashboard_outlined,
+      Icons.dashboard,
+      'Dashboard',
+      'डैशबोर्ड',
+    ),
+    _NavItem(Icons.bar_chart_outlined, Icons.bar_chart, 'Statistics', 'आँकड़े'),
+    _NavItem(
+      Icons.list_alt_outlined,
+      Icons.list_alt,
+      'Feedback List',
+      'प्रतिक्रिया सूची',
+    ),
+    _NavItem(Icons.download_outlined, Icons.download, 'Download', 'डाउनलोड'),
+    _NavItem(Icons.quiz_outlined, Icons.quiz, 'Questions', 'प्रश्न'),
+    _NavItem(Icons.lock_outline, Icons.lock, 'Change Password', 'पासवर्ड'),
   ];
 
-  @override
-  void initState() {
-    super.initState();
-
-    _entranceController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
-
-    // 4 stat cards with staggered fade+slide
-    _cardFades = List.generate(4, (i) {
-      final start = 0.05 + i * 0.08;
-      final end = (start + 0.35).clamp(0.0, 1.0);
-      return CurvedAnimation(
-        parent: _entranceController,
-        curve: Interval(start, end, curve: Curves.easeOut),
-      );
-    });
-    _cardSlides = List.generate(4, (i) {
-      final start = 0.05 + i * 0.08;
-      final end = (start + 0.4).clamp(0.0, 1.0);
-      return Tween<Offset>(
-        begin: const Offset(0, 0.12),
-        end: Offset.zero,
-      ).animate(
-        CurvedAnimation(
-          parent: _entranceController,
-          curve: Interval(start, end, curve: Curves.easeOutCubic),
-        ),
-      );
-    });
-
-    _chartController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
-    _chartProgress = CurvedAnimation(
-      parent: _chartController,
-      curve: Curves.easeOutCubic,
-    );
-
-    _entranceController.forward();
-    Future.delayed(const Duration(milliseconds: 400), () {
-      if (mounted) _chartController.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _entranceController.dispose();
-    _chartController.dispose();
-    super.dispose();
+  // Each index maps to a content widget
+  Widget _buildContent() {
+    switch (_selectedIndex) {
+      case 0:
+        return const _DashboardContent();
+      case 1:
+        return const StatisticsPage();
+      case 2:
+        return const FeedListPage();
+      case 3:
+        return const DownloadPage();
+      case 4:
+        return const AddDelQuestionsPage();
+      case 5:
+        return const ChangePwdPage();
+      default:
+        return const _DashboardContent();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final isLandscape = size.width > size.height;
-    final pad = isLandscape ? size.width * 0.04 : 16.0;
+    final isWide = size.width > 720;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7F4),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopBar(pad, isLandscape),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: pad, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Stat cards row
-                    _buildStatCards(isLandscape),
-                    const SizedBox(height: 20),
+      backgroundColor: AdminTheme.bg,
+      body: Row(
+        children: [
+          // ── Sidebar ─────────────────────────────────────────────
+          _Sidebar(
+            items: _navItems,
+            selected: _selectedIndex,
+            wide: isWide,
+            onSelect: (i) => setState(() => _selectedIndex = i),
+            onBack: () => Navigator.of(context).pop(),
+          ),
 
-                    // Tab bar for chart views
-                    _buildTabBar(),
-                    const SizedBox(height: 16),
-
-                    // Charts area
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 350),
-                      switchInCurve: Curves.easeOut,
-                      child: _selectedTab == 0
-                          ? _buildRatingChart(size, isLandscape)
-                          : _selectedTab == 1
-                          ? _buildQuestionBreakdown(size, isLandscape)
-                          : _buildWeeklyTrend(size, isLandscape),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Recent feedbacks
-                    _buildRecentSection(isLandscape),
-                    const SizedBox(height: 24),
-                  ],
+          // ── Main area ───────────────────────────────────────────
+          Expanded(
+            child: Column(
+              children: [
+                _TopBar(
+                  title: _navItems[_selectedIndex].label,
+                  subtitle: _navItems[_selectedIndex].hindi,
                 ),
-              ),
+                Expanded(child: _buildContent()),
+              ],
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Sidebar ────────────────────────────────────────────────────────
+class _Sidebar extends StatelessWidget {
+  final List<_NavItem> items;
+  final int selected;
+  final bool wide;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onBack;
+
+  const _Sidebar({
+    required this.items,
+    required this.selected,
+    required this.wide,
+    required this.onSelect,
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final w = wide ? 220.0 : 68.0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      width: w,
+      color: AdminTheme.sidebar,
+      child: Column(
+        children: [
+          // Brand header
+          Container(
+            height: 64,
+            alignment: Alignment.centerLeft,
+            padding: EdgeInsets.symmetric(horizontal: wide ? 20 : 12),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AdminTheme.primaryLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.shield_outlined,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
+                if (wide) ...[
+                  const SizedBox(width: 12),
+                  const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'ADMIN',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5,
+                        ),
+                      ),
+                      Text(
+                        'Indian Army Kiosk',
+                        style: TextStyle(
+                          color: Color(0x88FFFFFF),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // Nav items
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              itemCount: items.length,
+              itemBuilder: (_, i) {
+                final item = items[i];
+                final active = selected == i;
+                return _SidebarTile(
+                  item: item,
+                  active: active,
+                  wide: wide,
+                  onTap: () => onSelect(i),
+                );
+              },
+            ),
+          ),
+
+          // Back button
+          const Divider(color: Color(0x22FFFFFF), height: 1),
+          _SidebarTile(
+            item: const _NavItem(
+              Icons.arrow_back_rounded,
+              Icons.arrow_back_rounded,
+              'Exit',
+              'वापस जाएँ',
+            ),
+            active: false,
+            wide: wide,
+            onTap: onBack,
+          ),
+          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarTile extends StatefulWidget {
+  final _NavItem item;
+  final bool active;
+  final bool wide;
+  final VoidCallback onTap;
+
+  const _SidebarTile({
+    required this.item,
+    required this.active,
+    required this.wide,
+    required this.onTap,
+  });
+
+  @override
+  State<_SidebarTile> createState() => _SidebarTileState();
+}
+
+class _SidebarTileState extends State<_SidebarTile> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = widget.active;
+    final bgColor = active
+        ? AdminTheme.sidebarActive
+        : _hovered
+        ? AdminTheme.sidebarHover
+        : Colors.transparent;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          margin: const EdgeInsets.symmetric(vertical: 2),
+          padding: EdgeInsets.symmetric(
+            horizontal: widget.wide ? 14 : 0,
+            vertical: 11,
+          ),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: widget.wide
+                ? MainAxisAlignment.start
+                : MainAxisAlignment.center,
+            children: [
+              Icon(
+                active ? widget.item.activeIcon : widget.item.icon,
+                size: 20,
+                color: active ? Colors.white : const Color(0xAAFFFFFF),
+              ),
+              if (widget.wide) ...[
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    widget.item.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                      color: active ? Colors.white : const Color(0xCCFFFFFF),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  // ─── Top Bar ──────────────────────────────────────────────────
-  Widget _buildTopBar(double pad, bool isLandscape) {
+// ─── Top Bar ─────────────────────────────────────────────────────────
+class _TopBar extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  const _TopBar({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: pad, vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE8E4DE), width: 1)),
-      ),
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      color: Colors.white,
       child: Row(
         children: [
-          GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0EDE8),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.arrow_back_rounded,
-                size: 20,
-                color: Color(0xFF333333),
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
+          Expanded(
             child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'प्रशासन डैशबोर्ड',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1A1A1A),
-                    letterSpacing: -0.3,
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AdminTheme.textPrimary,
                   ),
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Administration Dashboard',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF999999),
-                    letterSpacing: 0.3,
-                  ),
-                ),
+                Text(subtitle, style: AdminTheme.caption),
               ],
             ),
           ),
-          // Live indicator
+          // Live badge
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFF2E7D32).withValues(alpha: 0.08),
+              color: const Color(0xFFE8F5E9),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.circle, size: 8, color: Color(0xFF2E7D32)),
+                Icon(Icons.circle, size: 8, color: AdminTheme.success),
                 SizedBox(width: 6),
                 Text(
                   'LIVE',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF2E7D32),
+                    color: AdminTheme.success,
                     letterSpacing: 1,
                   ),
                 ),
@@ -249,291 +351,304 @@ class _AdminHomeState extends State<AdminHome> with TickerProviderStateMixin {
       ),
     );
   }
+}
 
-  // ─── Stat Cards ───────────────────────────────────────────────
-  Widget _buildStatCards(bool isLandscape) {
-    final cards = [
-      _StatData(
-        'कुल प्रतिक्रिया',
-        _totalFeedbacks.toString(),
-        'Total Feedback',
-        Icons.bar_chart_rounded,
-        const Color(0xFF1A3A2A),
-      ),
-      _StatData(
-        'आज',
-        _todayCount.toString(),
-        'Today',
-        Icons.today_rounded,
-        const Color(0xFF37474F),
-      ),
-      _StatData(
-        'औसत रेटिंग',
-        _avgRating.toStringAsFixed(1),
-        'Avg Rating',
-        Icons.star_rounded,
-        const Color(0xFFE65100),
-      ),
-      _StatData(
-        'संतुष्टि',
-        '$_satisfactionPct%',
-        'Satisfaction',
-        Icons.sentiment_satisfied_alt_rounded,
-        const Color(0xFF2E7D32),
-      ),
-    ];
+// ═══════════════════════════════════════════════════════════════════
+// Dashboard Content (inline in home.dart)
+// ═══════════════════════════════════════════════════════════════════
 
-    return Row(
-      children: List.generate(cards.length, (i) {
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: i < 3 ? 10 : 0),
-            child: FadeTransition(
-              opacity: _cardFades[i],
-              child: SlideTransition(
-                position: _cardSlides[i],
-                child: _buildStatCard(cards[i]),
-              ),
-            ),
-          ),
-        );
-      }),
+class _DashboardContent extends StatefulWidget {
+  const _DashboardContent();
+
+  @override
+  State<_DashboardContent> createState() => _DashboardContentState();
+}
+
+class _DashboardContentState extends State<_DashboardContent>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+  int _chartTab = 0;
+
+  static const _ratingDist = [42, 78, 198, 412, 517];
+  static const _qLabels = [
+    'सेवा गुणवत्ता',
+    'कर्मचारी व्यवहार',
+    'सुविधाएँ',
+    'प्रतीक्षा समय',
+    'पुनः आगमन',
+  ];
+  static const _qScores = [4.1, 4.4, 3.8, 3.6, 4.6];
+  static const _weekLabels = [
+    'सोम',
+    'मंगल',
+    'बुध',
+    'गुरु',
+    'शुक्र',
+    'शनि',
+    'रवि',
+  ];
+  static const _weekCounts = [28, 35, 22, 41, 38, 45, 38];
+  static const _weekRatings = [3.9, 4.1, 4.0, 4.3, 4.2, 4.5, 4.2];
+  static const _recent = <_FbRow>[
+    _FbRow('राम कुमार', 5, '10:42 AM', 'बहुत बढ़िया सेवा'),
+    _FbRow('सीता देवी', 4, '10:28 AM', 'अच्छा अनुभव'),
+    _FbRow('अजय सिंह', 3, '10:15 AM', 'ठीक-ठाक'),
+    _FbRow('प्रिया शर्मा', 5, '09:58 AM', 'बहुत संतुष्ट'),
+    _FbRow('विजय पटेल', 2, '09:41 AM', 'सुधार आवश्यक'),
+    _FbRow('मीना गुप्ता', 4, '09:30 AM', 'अच्छी सेवा'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
     );
+    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
+    _ctrl.forward();
   }
 
-  Widget _buildStatCard(_StatData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAE6E0), width: 1),
-      ),
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Stat cards ─────────────────────────────────────────
+          _buildStatRow(),
+          const SizedBox(height: 24),
+
+          // ── Chart tabs ─────────────────────────────────────────
           Row(
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: data.color.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(data.icon, size: 18, color: data.color),
-              ),
-              const Spacer(),
-              Text(
-                data.engLabel,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFFAAAAAA),
-                  letterSpacing: 0.4,
-                ),
-              ),
+              _chartTabBtn(0, 'Rating Dist.'),
+              const SizedBox(width: 8),
+              _chartTabBtn(1, 'Per Question'),
+              const SizedBox(width: 8),
+              _chartTabBtn(2, 'Weekly Trend'),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(
-            data.value,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w800,
-              color: data.color,
-              letterSpacing: -0.5,
-              height: 1,
-            ),
+          const SizedBox(height: 16),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _buildChart(),
           ),
-          const SizedBox(height: 4),
-          Text(
-            data.label,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF777777),
-            ),
-          ),
+          const SizedBox(height: 24),
+
+          // ── Recent feedbacks ───────────────────────────────────
+          _buildRecent(),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  // ─── Tab Bar ──────────────────────────────────────────────────
-  Widget _buildTabBar() {
-    const tabs = ['रेटिंग वितरण', 'प्रश्न विश्लेषण', 'साप्ताहिक रुझान'];
-    const engTabs = [
-      'Rating Distribution',
-      'Question Analysis',
-      'Weekly Trend',
-    ];
-
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List.generate(tabs.length, (i) {
-          final isActive = _selectedTab == i;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () {
-                setState(() => _selectedTab = i);
-                _chartController.reset();
-                _chartController.forward();
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: isActive ? const Color(0xFF1A3A2A) : Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isActive
-                        ? const Color(0xFF1A3A2A)
-                        : const Color(0xFFE0DBD4),
-                    width: 1.5,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      tabs[i],
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isActive
-                            ? Colors.white
-                            : const Color(0xFF555555),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      engTabs[i],
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w400,
-                        color: isActive
-                            ? Colors.white.withValues(alpha: 0.6)
-                            : const Color(0xFFAAAAAA),
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
+  Widget _chartTabBtn(int idx, String label) {
+    final active = _chartTab == idx;
+    return GestureDetector(
+      onTap: () {
+        setState(() => _chartTab = idx);
+        _ctrl.reset();
+        _ctrl.forward();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? AdminTheme.primary : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active ? AdminTheme.primary : AdminTheme.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : AdminTheme.textSecondary,
+          ),
+        ),
       ),
     );
   }
 
-  // ─── Rating Distribution Bar Chart ────────────────────────────
-  Widget _buildRatingChart(Size size, bool isLandscape) {
-    final maxVal = _ratingDistribution.reduce(math.max).toDouble();
-    final total = _ratingDistribution.fold<int>(0, (a, b) => a + b);
-    final barHeight = isLandscape ? 36.0 : 30.0;
+  Widget _buildStatRow() {
+    final stats = [
+      _Stat(
+        'Total Feedback',
+        'कुल फ़ीडबैक',
+        '1,247',
+        Icons.feedback_outlined,
+        AdminTheme.primary,
+      ),
+      _Stat('Today', 'आज', '38', Icons.today_outlined, AdminTheme.accent),
+      _Stat(
+        'Avg Rating',
+        'औसत रेटिंग',
+        '4.2',
+        Icons.star_outline_rounded,
+        AdminTheme.warning,
+      ),
+      _Stat(
+        'Satisfaction',
+        'संतुष्टि',
+        '87%',
+        Icons.sentiment_satisfied_alt_outlined,
+        AdminTheme.success,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (_, c) {
+        final w = (c.maxWidth - 48) / 4;
+        return Row(
+          children: stats.asMap().entries.map((e) {
+            final i = e.key;
+            final stat = e.value;
+            return Container(
+              width: w,
+              margin: EdgeInsets.only(right: i < 3 ? 16 : 0),
+              padding: const EdgeInsets.all(18),
+              decoration: AdminTheme.card(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: stat.color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(stat.icon, size: 18, color: stat.color),
+                      ),
+                      const Spacer(),
+                      Text(
+                        stat.eng,
+                        style: AdminTheme.caption.copyWith(fontSize: 10),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    stat.value,
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: stat.color,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    stat.hindi,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AdminTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildChart() {
+    switch (_chartTab) {
+      case 0:
+        return _buildRatingDist();
+      case 1:
+        return _buildQBreakdown();
+      default:
+        return _buildWeekly();
+    }
+  }
+
+  Widget _buildRatingDist() {
+    final total = _ratingDist.fold<int>(0, (a, b) => a + b);
+    final maxVal = _ratingDist.reduce(math.max).toDouble();
+    final barColors = [
+      AdminTheme.danger,
+      const Color(0xFFE65100),
+      AdminTheme.warning,
+      AdminTheme.accent,
+      AdminTheme.success,
+    ];
 
     return Container(
-      key: const ValueKey('rating'),
+      key: const ValueKey('rd'),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAE6E0)),
-      ),
+      decoration: AdminTheme.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Text(
-                'रेटिंग वितरण',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
-                ),
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Rating Distribution',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFFAAAAAA),
-                ),
-              ),
-            ],
-          ),
+          _chartHeader('Rating Distribution', 'रेटिंग वितरण'),
           const SizedBox(height: 20),
           ...List.generate(5, (i) {
-            final starLevel = 5 - i;
-            final count = _ratingDistribution[starLevel - 1];
+            final star = 5 - i;
+            final count = _ratingDist[star - 1];
             final pct = count / total * 100;
-            final barFraction = count / maxVal;
-
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
                 children: [
                   SizedBox(
-                    width: 24,
+                    width: 22,
                     child: Text(
-                      '$starLevel',
+                      '$star',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF555555),
+                        color: AdminTheme.textSecondary,
                       ),
                     ),
                   ),
                   const Icon(
                     Icons.star_rounded,
-                    size: 16,
+                    size: 14,
                     color: Color(0xFFE6A817),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: AnimatedBuilder(
-                      animation: _chartProgress,
-                      builder: (context, _) {
-                        return Container(
-                          height: barHeight,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF5F2EE),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: FractionallySizedBox(
-                              widthFactor: barFraction * _chartProgress.value,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: _barColor(starLevel),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                      animation: _anim,
+                      builder: (_, __) => ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: LinearProgressIndicator(
+                          value: (count / maxVal) * _anim.value,
+                          minHeight: 28,
+                          backgroundColor: AdminTheme.bg,
+                          valueColor: AlwaysStoppedAnimation(barColors[i]),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   SizedBox(
-                    width: 55,
+                    width: 72,
                     child: Text(
-                      '$count (${pct.toStringAsFixed(0)}%)',
+                      '$count  (${pct.toStringAsFixed(0)}%)',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF777777),
+                        color: AdminTheme.textSecondary,
                       ),
                     ),
                   ),
@@ -546,123 +661,50 @@ class _AdminHomeState extends State<AdminHome> with TickerProviderStateMixin {
     );
   }
 
-  Color _barColor(int stars) {
-    switch (stars) {
-      case 5:
-        return const Color(0xFF2E7D32);
-      case 4:
-        return const Color(0xFF558B2F);
-      case 3:
-        return const Color(0xFFE6A817);
-      case 2:
-        return const Color(0xFFE65100);
-      default:
-        return const Color(0xFFC62828);
-    }
-  }
-
-  // ─── Question Breakdown ───────────────────────────────────────
-  Widget _buildQuestionBreakdown(Size size, bool isLandscape) {
+  Widget _buildQBreakdown() {
     return Container(
-      key: const ValueKey('questions'),
+      key: const ValueKey('qb'),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAE6E0)),
-      ),
+      decoration: AdminTheme.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Text(
-                'प्रश्न-वार विश्लेषण',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
-                ),
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Per-Question Analysis',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFFAAAAAA),
-                ),
-              ),
-            ],
-          ),
+          _chartHeader('Per-Question Analysis', 'प्रश्न-वार विश्लेषण'),
           const SizedBox(height: 20),
-          ...List.generate(_questionLabels.length, (i) {
-            final score = _questionScores[i];
-            final fraction = score / 5.0;
-
+          ...List.generate(_qLabels.length, (i) {
+            final score = _qScores[i];
+            final color = _scoreColor(score);
             return Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.only(bottom: 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
+                      Text(_qLabels[i], style: AdminTheme.label),
                       Text(
-                        _questionLabels[i],
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF333333),
+                        '${score.toStringAsFixed(1)} / 5',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: color,
                         ),
-                      ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            score.toStringAsFixed(1),
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: _scoreColor(score),
-                            ),
-                          ),
-                          const Text(
-                            '/5',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Color(0xFFAAAAAA),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   AnimatedBuilder(
-                    animation: _chartProgress,
-                    builder: (context, _) {
-                      return Container(
-                        height: 10,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF5F2EE),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: FractionallySizedBox(
-                            widthFactor: fraction * _chartProgress.value,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: _scoreColor(score),
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+                    animation: _anim,
+                    builder: (_, __) => ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: LinearProgressIndicator(
+                        value: (score / 5.0) * _anim.value,
+                        minHeight: 8,
+                        backgroundColor: AdminTheme.bg,
+                        valueColor: AlwaysStoppedAnimation(color),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -673,176 +715,109 @@ class _AdminHomeState extends State<AdminHome> with TickerProviderStateMixin {
     );
   }
 
-  Color _scoreColor(double score) {
-    if (score >= 4.5) return const Color(0xFF2E7D32);
-    if (score >= 4.0) return const Color(0xFF558B2F);
-    if (score >= 3.5) return const Color(0xFFE6A817);
-    if (score >= 3.0) return const Color(0xFFE65100);
-    return const Color(0xFFC62828);
-  }
-
-  // ─── Weekly Trend ─────────────────────────────────────────────
-  Widget _buildWeeklyTrend(Size size, bool isLandscape) {
-    final chartHeight = isLandscape ? 200.0 : 180.0;
-
+  Widget _buildWeekly() {
     return Container(
-      key: const ValueKey('weekly'),
+      key: const ValueKey('wt'),
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAE6E0)),
-      ),
+      decoration: AdminTheme.card(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            children: [
-              Text(
-                'साप्ताहिक रुझान',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1A1A1A),
-                ),
-              ),
-              SizedBox(width: 8),
-              Text(
-                'Weekly Trend',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFFAAAAAA),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          // Legend
-          Row(
-            children: [
-              _legendDot(const Color(0xFF1A3A2A), 'प्रतिक्रिया संख्या'),
-              const SizedBox(width: 16),
-              _legendDot(const Color(0xFFE6A817), 'औसत रेटिंग'),
-            ],
-          ),
+          _chartHeader('Weekly Trend', 'साप्ताहिक रुझान'),
           const SizedBox(height: 16),
           SizedBox(
-            height: chartHeight,
+            height: 180,
             child: AnimatedBuilder(
-              animation: _chartProgress,
-              builder: (context, _) {
-                return CustomPaint(
-                  size: Size(double.infinity, chartHeight),
-                  painter: _WeeklyChartPainter(
-                    progress: _chartProgress.value,
-                    counts: _weeklyData,
-                    ratings: _weeklyAvgRating,
-                    labels: _weeklyLabels,
-                  ),
-                );
-              },
+              animation: _anim,
+              builder: (_, __) => CustomPaint(
+                size: const Size(double.infinity, 180),
+                painter: _WeeklyPainter(
+                  progress: _anim.value,
+                  counts: _weekCounts,
+                  ratings: _weekRatings,
+                  labels: _weekLabels,
+                ),
+              ),
             ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _legendDot(AdminTheme.primary, 'Feedback count'),
+              const SizedBox(width: 16),
+              _legendDot(AdminTheme.warning, 'Avg rating'),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _legendDot(Color color, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(3),
-          ),
+  Widget _legendDot(Color c, String label) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(
+          color: c,
+          borderRadius: BorderRadius.circular(3),
         ),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w500,
-            color: Color(0xFF888888),
-          ),
-        ),
-      ],
-    );
-  }
+      ),
+      const SizedBox(width: 6),
+      Text(label, style: AdminTheme.caption),
+    ],
+  );
 
-  // ─── Recent Feedbacks ─────────────────────────────────────────
-  Widget _buildRecentSection(bool isLandscape) {
+  Widget _buildRecent() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
+        Row(
           children: [
-            Text(
-              'हाल की प्रतिक्रियाएँ',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-            SizedBox(width: 8),
-            Text(
-              'Recent Feedbacks',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w400,
-                color: Color(0xFFAAAAAA),
-              ),
-            ),
+            const Text('Recent Feedbacks', style: AdminTheme.sectionTitle),
+            const SizedBox(width: 8),
+            Text('हाल की प्रतिक्रियाएँ', style: AdminTheme.caption),
           ],
         ),
         const SizedBox(height: 12),
         Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFEAE6E0)),
-          ),
+          decoration: AdminTheme.card(),
           child: Column(
-            children: List.generate(_recentFeedbacks.length, (i) {
-              final fb = _recentFeedbacks[i];
-              final isLast = i == _recentFeedbacks.length - 1;
+            children: _recent.asMap().entries.map((e) {
+              final i = e.key;
+              final fb = e.value;
               return Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
+                  horizontal: 20,
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  border: isLast
-                      ? null
-                      : const Border(
+                  border: i < _recent.length - 1
+                      ? const Border(
                           bottom: BorderSide(
-                            color: Color(0xFFF0EDE8),
+                            color: AdminTheme.border,
                             width: 1,
                           ),
-                        ),
+                        )
+                      : null,
                 ),
                 child: Row(
                   children: [
-                    // Avatar circle
                     Container(
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: _avatarColor(fb.rating),
-                        borderRadius: BorderRadius.circular(12),
+                        color: _ratingColor(fb.rating).withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Center(
                         child: Text(
                           fb.name.characters.first,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: _ratingColor(fb.rating),
                           ),
                         ),
                       ),
@@ -857,98 +832,71 @@ class _AdminHomeState extends State<AdminHome> with TickerProviderStateMixin {
                             style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF1A1A1A),
+                              color: AdminTheme.textPrimary,
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            fb.comment,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: Color(0xFF999999),
-                            ),
-                          ),
+                          Text(fb.comment, style: AdminTheme.caption),
                         ],
                       ),
                     ),
-                    // Stars
                     Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: List.generate(5, (s) {
-                        return Icon(
+                      children: List.generate(
+                        5,
+                        (s) => Icon(
                           s < fb.rating
                               ? Icons.star_rounded
                               : Icons.star_outline_rounded,
-                          size: 16,
+                          size: 15,
                           color: s < fb.rating
                               ? const Color(0xFFE6A817)
-                              : const Color(0xFFD8D3CA),
-                        );
-                      }),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      fb.time,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                        color: Color(0xFFAAAAAA),
+                              : AdminTheme.border,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    Text(fb.time, style: AdminTheme.caption),
                   ],
                 ),
               );
-            }),
+            }).toList(),
           ),
         ),
       ],
     );
   }
 
-  Color _avatarColor(int rating) {
-    if (rating >= 5) return const Color(0xFF2E7D32);
-    if (rating >= 4) return const Color(0xFF558B2F);
-    if (rating >= 3) return const Color(0xFFE6A817);
-    if (rating >= 2) return const Color(0xFFE65100);
-    return const Color(0xFFC62828);
+  Widget _chartHeader(String eng, String hindi) => Row(
+    children: [
+      Text(eng, style: AdminTheme.sectionTitle),
+      const SizedBox(width: 8),
+      Text(hindi, style: AdminTheme.caption),
+    ],
+  );
+
+  Color _scoreColor(double s) {
+    if (s >= 4.5) return AdminTheme.success;
+    if (s >= 4.0) return AdminTheme.accent;
+    if (s >= 3.5) return AdminTheme.warning;
+    return AdminTheme.danger;
+  }
+
+  Color _ratingColor(int r) {
+    if (r >= 5) return AdminTheme.success;
+    if (r >= 4) return AdminTheme.accent;
+    if (r >= 3) return AdminTheme.warning;
+    return AdminTheme.danger;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// Data models
-// ═══════════════════════════════════════════════════════════════════
-
-class _StatData {
-  final String label;
-  final String value;
-  final String engLabel;
-  final IconData icon;
-  final Color color;
-
-  const _StatData(this.label, this.value, this.engLabel, this.icon, this.color);
-}
-
-class _DemoFeedback {
-  final String name;
-  final int rating;
-  final String time;
-  final String comment;
-
-  const _DemoFeedback(this.name, this.rating, this.time, this.comment);
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Weekly chart painter — bars + line overlay
-// ═══════════════════════════════════════════════════════════════════
-
-class _WeeklyChartPainter extends CustomPainter {
+// ─── Weekly Bar+Line Painter ─────────────────────────────────────────
+class _WeeklyPainter extends CustomPainter {
   final double progress;
   final List<int> counts;
   final List<double> ratings;
   final List<String> labels;
 
-  _WeeklyChartPainter({
+  _WeeklyPainter({
     required this.progress,
     required this.counts,
     required this.ratings,
@@ -958,109 +906,79 @@ class _WeeklyChartPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (progress <= 0) return;
+    final maxC = counts.reduce(math.max).toDouble();
+    final n = counts.length;
+    final bw = size.width / n;
+    final bottom = size.height - 24.0;
+    final top = 8.0;
+    final h = bottom - top;
 
-    final maxCount = counts.reduce(math.max).toDouble();
-    final barCount = counts.length;
-    final barWidth = size.width / barCount;
-    final chartBottom = size.height - 24;
-    final chartTop = 8.0;
-    final chartHeight = chartBottom - chartTop;
-
-    final barPaint = Paint()..style = PaintingStyle.fill;
-    final barBgPaint = Paint()
-      ..color = const Color(0xFFF5F2EE)
-      ..style = PaintingStyle.fill;
-
-    // Grid lines
-    final gridPaint = Paint()
-      ..color = const Color(0xFFF0EDE8)
+    final bgPaint = Paint()..color = AdminTheme.bg;
+    final barPaint = Paint()..color = AdminTheme.primary.withOpacity(0.85);
+    final gridP = Paint()
+      ..color = AdminTheme.border.withOpacity(0.6)
       ..strokeWidth = 1;
+
+    // grid
     for (int g = 0; g <= 4; g++) {
-      final y = chartTop + chartHeight * (g / 4);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+      final y = top + h * (g / 4);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridP);
     }
 
-    // Label text style
-    final labelStyle = TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w600,
-      color: const Color(0xFF999999),
-    );
+    for (int i = 0; i < n; i++) {
+      final x = bw * i + bw * 0.18;
+      final w = bw * 0.64;
+      final frac = (counts[i] / maxC) * progress;
+      final barH = h * frac;
+      final barTop = bottom - barH;
 
-    // Bars
-    for (int i = 0; i < barCount; i++) {
-      final x = barWidth * i + barWidth * 0.15;
-      final w = barWidth * 0.7;
-      final fraction = (counts[i] / maxCount) * progress;
-      final barH = chartHeight * fraction;
-      final barTop = chartBottom - barH;
-
-      // Background
+      // bg
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(x, chartTop, w, chartHeight),
-          const Radius.circular(6),
+          Rect.fromLTWH(x, top, w, h),
+          const Radius.circular(5),
         ),
-        barBgPaint,
+        bgPaint,
       );
-
-      // Filled bar
-      barPaint.color = const Color(
-        0xFF1A3A2A,
-      ).withValues(alpha: 0.7 + 0.3 * (counts[i] / maxCount));
+      // bar
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(x, barTop, w, barH),
-          const Radius.circular(6),
+          const Radius.circular(5),
         ),
         barPaint,
       );
 
-      // Count label on top of bar
-      if (progress > 0.5) {
-        final countTp = TextPainter(
-          text: TextSpan(text: '${counts[i]}', style: labelStyle),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        countTp.paint(
-          canvas,
-          Offset(x + w / 2 - countTp.width / 2, barTop - 18),
-        );
-      }
-
-      // Day label below
+      // label
       final tp = TextPainter(
-        text: TextSpan(text: labels[i], style: labelStyle),
+        text: TextSpan(
+          text: labels[i],
+          style: const TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: AdminTheme.textMuted,
+          ),
+        ),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, Offset(x + w / 2 - tp.width / 2, chartBottom + 6));
+      tp.paint(canvas, Offset(x + w / 2 - tp.width / 2, bottom + 6));
     }
 
-    // Rating line overlay
+    // rating line
     if (progress > 0.3) {
-      final lineProgress = ((progress - 0.3) / 0.7).clamp(0.0, 1.0);
+      final lp = ((progress - 0.3) / 0.7).clamp(0.0, 1.0);
       final linePaint = Paint()
-        ..color = const Color(0xFFE6A817)
+        ..color = AdminTheme.warning
         ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round
         ..style = PaintingStyle.stroke;
-
-      final dotPaint = Paint()
-        ..color = const Color(0xFFE6A817)
-        ..style = PaintingStyle.fill;
-
-      final ratingMin = 3.0;
-      final ratingMax = 5.0;
+      final dotPaint = Paint()..color = AdminTheme.warning;
 
       final path = Path();
-      final visibleCount = (barCount * lineProgress).ceil();
-
-      for (int i = 0; i < visibleCount && i < barCount; i++) {
-        final cx = barWidth * i + barWidth * 0.5;
-        final normalised = ((ratings[i] - ratingMin) / (ratingMax - ratingMin))
-            .clamp(0.0, 1.0);
-        final cy = chartBottom - chartHeight * normalised;
-
+      final vis = (n * lp).ceil().clamp(0, n);
+      for (int i = 0; i < vis; i++) {
+        final cx = bw * i + bw * 0.5;
+        final cy = bottom - h * ((ratings[i] - 3) / 2).clamp(0.0, 1.0);
         if (i == 0) {
           path.moveTo(cx, cy);
         } else {
@@ -1073,7 +991,31 @@ class _WeeklyChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _WeeklyChartPainter old) {
-    return old.progress != progress;
-  }
+  bool shouldRepaint(_WeeklyPainter o) => o.progress != progress;
+}
+
+// ─── Data models ─────────────────────────────────────────────────────
+class _NavItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String hindi;
+  const _NavItem(this.icon, this.activeIcon, this.label, this.hindi);
+}
+
+class _Stat {
+  final String eng;
+  final String hindi;
+  final String value;
+  final IconData icon;
+  final Color color;
+  const _Stat(this.eng, this.hindi, this.value, this.icon, this.color);
+}
+
+class _FbRow {
+  final String name;
+  final int rating;
+  final String time;
+  final String comment;
+  const _FbRow(this.name, this.rating, this.time, this.comment);
 }
