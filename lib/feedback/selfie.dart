@@ -180,7 +180,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Photo saved: $fileName'),
-            backgroundColor: FuturisticTheme.primaryGold,
+            backgroundColor: FuturisticTheme.primaryBlue,
             duration: const Duration(seconds: 2),
           ),
         );
@@ -247,7 +247,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
     final isLandscape = size.width > size.height;
 
     return Scaffold(
-      backgroundColor: FuturisticTheme.bgDark,
+      backgroundColor: FuturisticTheme.bgBlueDark,
       body: Stack(
         children: [
           // Grid Background
@@ -260,14 +260,14 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircularProgressIndicator(
-                    color: FuturisticTheme.primaryGold,
+                    color: FuturisticTheme.primaryBlue,
                     strokeWidth: 2,
                   ),
                   const SizedBox(height: 20),
                   Text(
                     'INITIALIZING CAMERA...',
                     style: FuturisticTheme.body.copyWith(
-                      color: FuturisticTheme.primaryGold,
+                      color: FuturisticTheme.primaryBlue,
                       letterSpacing: 2,
                     ),
                   ),
@@ -331,13 +331,13 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
               height: previewHeight,
               decoration: BoxDecoration(
                 border: Border.all(
-                  color: FuturisticTheme.primaryGold.withOpacity(0.4),
+                  color: FuturisticTheme.primaryBlue.withOpacity(0.4),
                   width: 1.5,
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: FuturisticTheme.primaryGold.withOpacity(0.12),
+                    color: FuturisticTheme.primaryBlue.withOpacity(0.12),
                     blurRadius: 30,
                     spreadRadius: 4,
                   ),
@@ -358,7 +358,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
                         builder: (context, _) => CustomPaint(
                           painter: ScannerPainter(
                             progress: _scanAnimation.value,
-                            color: FuturisticTheme.primaryGold,
+                            color: FuturisticTheme.primaryBlue,
                           ),
                         ),
                       ),
@@ -366,7 +366,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
                     // Corner brackets
                     CustomPaint(
                       painter: CornerBracketPainter(
-                        color: FuturisticTheme.primaryGold,
+                        color: FuturisticTheme.primaryBlue,
                       ),
                     ),
 
@@ -462,7 +462,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
           children: [
             Icon(
               Icons.camera_alt_outlined,
-              color: FuturisticTheme.primaryGold.withOpacity(0.4),
+              color: FuturisticTheme.primaryBlue.withOpacity(0.4),
               size: 48,
             ),
             const SizedBox(height: 12),
@@ -492,10 +492,10 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: FuturisticTheme.primaryGold, width: 4),
+            border: Border.all(color: FuturisticTheme.primaryBlue, width: 4),
             boxShadow: [
               BoxShadow(
-                color: FuturisticTheme.primaryGold.withOpacity(0.5),
+                color: FuturisticTheme.primaryBlue.withOpacity(0.5),
                 blurRadius: 24,
                 spreadRadius: 4,
               ),
@@ -555,14 +555,14 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
             border: 2,
             linearGradient: LinearGradient(
               colors: [
-                FuturisticTheme.primaryGold.withOpacity(0.3),
-                FuturisticTheme.primaryGold.withOpacity(0.1),
+                FuturisticTheme.primaryBlue.withOpacity(0.3),
+                FuturisticTheme.primaryBlue.withOpacity(0.1),
               ],
             ),
             borderGradient: LinearGradient(
               colors: [
-                FuturisticTheme.primaryGold,
-                FuturisticTheme.primaryGold.withOpacity(0.5),
+                FuturisticTheme.primaryBlue,
+                FuturisticTheme.primaryBlue.withOpacity(0.5),
               ],
             ),
             child: Text(
@@ -631,14 +631,14 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
                 border: 2,
                 linearGradient: LinearGradient(
                   colors: [
-                    FuturisticTheme.primaryGold.withOpacity(0.2),
-                    FuturisticTheme.primaryGold.withOpacity(0.05),
+                    FuturisticTheme.primaryBlue.withOpacity(0.2),
+                    FuturisticTheme.primaryBlue.withOpacity(0.05),
                   ],
                 ),
                 borderGradient: LinearGradient(
                   colors: [
-                    FuturisticTheme.primaryGold,
-                    FuturisticTheme.primaryGold.withOpacity(0.4),
+                    FuturisticTheme.primaryBlue,
+                    FuturisticTheme.primaryBlue.withOpacity(0.4),
                   ],
                 ),
                 child: Text(

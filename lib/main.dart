@@ -123,200 +123,233 @@ class _KioskLandingState extends State<KioskLanding>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
-    final isLandscape = size.width > size.height;
-
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background Elements
-          Positioned.fill(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.5,
-                  colors: [
-                    FuturisticTheme.bgMaroon,
-                    FuturisticTheme.bgDark,
-                    Colors.black,
-                  ],
-                  stops: [0.0, 0.6, 1.0],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isLandscape = constraints.maxWidth > constraints.maxHeight;
+          final width = constraints.maxWidth;
+          final height = constraints.maxHeight;
+
+          return Stack(
+            children: [
+              // Background Elements
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.5,
+                      colors: [
+                        FuturisticTheme.bgMaroon,
+                        FuturisticTheme.bgDark,
+                        Colors.black,
+                      ],
+                      stops: [0.0, 0.6, 1.0],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
 
-          // Grid Overlay (Tech look)
-          Positioned.fill(child: CustomPaint(painter: GridPainter())),
+              // Grid Overlay
+              Positioned.fill(child: CustomPaint(painter: GridPainter())),
 
-          SafeArea(
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isLandscape ? size.width * 0.08 : 24,
-                vertical: isLandscape ? 32 : 24,
-              ),
-              child: Column(
-                children: [
-                  // Top Bar - Glass Buttons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              SafeArea(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: isLandscape ? width * 0.08 : 24,
+                    vertical: 24,
+                  ),
+                  child: Column(
                     children: [
+                      // Top Bar - Responsive layout
+                      _buildTopBar(isLandscape, width),
+
                       Expanded(
-                        child: FadeTransition(
-                          opacity: _fade,
-                          child: _FuturisticButton(
-                            icon: Icons.rate_review_outlined,
-                            label: 'FEEDBACK',
-                            sublabel: 'प्रतिक्रिया',
-                            onTap: () => _navigateTo(const FeedBackDetails()),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: isLandscape ? 40 : 20),
-                      Expanded(
-                        child: FadeTransition(
-                          opacity: _fade,
-                          child: _FuturisticButton(
-                            icon: Icons.admin_panel_settings_outlined,
-                            label: 'ADMIN',
-                            sublabel: 'प्रशासन',
-                            isSecondary: true,
-                            onTap: () => _navigateTo(const AdminHome()),
+                        child: Center(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const SizedBox(height: 20),
+                                // Hero Video section with dynamic sizing
+                                _buildHeroSection(isLandscape, width, height),
+                                const SizedBox(height: 40),
+                                // Animated Text
+                                _buildWelcomeText(isLandscape, width),
+                                const SizedBox(height: 10),
+                                Text(
+                                  'SEVA ASMAKAM DHARMA',
+                                  textAlign: TextAlign.center,
+                                  style: FuturisticTheme.body.copyWith(
+                                    color: FuturisticTheme.primaryGold,
+                                    letterSpacing: width < 400 ? 2.0 : 4.0,
+                                    fontSize: width < 400 ? 12 : 16,
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ],
                   ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
-                  SizedBox(height: isLandscape ? 40 : 30),
+  Widget _buildTopBar(bool isLandscape, double width) {
+    final bool useVertical = width < 480;
+    if (useVertical) {
+      return Column(
+        children: [
+          FadeTransition(
+            opacity: _fade,
+            child: _FuturisticButton(
+              icon: Icons.rate_review_outlined,
+              label: 'FEEDBACK',
+              sublabel: 'प्रतिक्रिया',
+              onTap: () => _navigateTo(const FeedBackDetails()),
+            ),
+          ),
+          const SizedBox(height: 12),
+          FadeTransition(
+            opacity: _fade,
+            child: _FuturisticButton(
+              icon: Icons.admin_panel_settings_outlined,
+              label: 'ADMIN',
+              sublabel: 'प्रशासन',
+              isSecondary: true,
+              onTap: () => _navigateTo(const AdminHome()),
+            ),
+          ),
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(
+          child: FadeTransition(
+            opacity: _fade,
+            child: _FuturisticButton(
+              icon: Icons.rate_review_outlined,
+              label: 'FEEDBACK',
+              sublabel: 'प्रतिक्रिया',
+              onTap: () => _navigateTo(const FeedBackDetails()),
+            ),
+          ),
+        ),
+        SizedBox(width: isLandscape ? 40 : 20),
+        Expanded(
+          child: FadeTransition(
+            opacity: _fade,
+            child: _FuturisticButton(
+              icon: Icons.admin_panel_settings_outlined,
+              label: 'ADMIN',
+              sublabel: 'प्रशासन',
+              isSecondary: true,
+              onTap: () => _navigateTo(const AdminHome()),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-                  // Hero Section
-                  Expanded(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Video Frame
-                          ScaleTransition(
-                            scale: _heroScale,
-                            child: Stack(
-                              alignment: Alignment.center,
-                              children: [
-                                // Glowing Back Plate
-                                Container(
-                                  width: isLandscape
-                                      ? size.height * 0.55
-                                      : size.width * 0.7,
-                                  height: isLandscape
-                                      ? size.height * 0.55
-                                      : size.width * 0.7,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: FuturisticTheme.primaryGold
-                                            .withOpacity(0.2),
-                                        blurRadius: 60,
-                                        spreadRadius: 10,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // Video Container
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(
-                                    300,
-                                  ), // Circular Mask
-                                  child: Container(
-                                    width: isLandscape
-                                        ? size.height * 0.52
-                                        : size.width * 0.65,
-                                    height: isLandscape
-                                        ? size.height * 0.52
-                                        : size.width * 0.65,
-                                    color: Colors.black,
-                                    child: Video(
-                                      controller: _videoController,
-                                      controls: NoVideoControls,
-                                      fill: Colors.black, // Blend with black
-                                      fit: BoxFit.cover,
-                                    ),
-                                  ),
-                                ),
-                                // Tech Ring Overlay
-                                SizedBox(
-                                  width: isLandscape
-                                      ? size.height * 0.58
-                                      : size.width * 0.72,
-                                  height: isLandscape
-                                      ? size.height * 0.58
-                                      : size.width * 0.72,
-                                  child: CircularProgressIndicator(
-                                    value: 0.7, // Static tech ring
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      FuturisticTheme.primaryGold.withOpacity(
-                                        0.3,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+  Widget _buildHeroSection(bool isLandscape, double width, double height) {
+    double baseSize = isLandscape ? height * 0.5 : width * 0.6;
+    // Clamp sizes
+    baseSize = baseSize.clamp(200.0, 500.0);
 
-                          const SizedBox(height: 40),
-
-                          // Welcome Text - Typewriter Effect
-                          SizedBox(
-                            height: 60,
-                            child: DefaultTextStyle(
-                              style: FuturisticTheme.titleLarge.copyWith(
-                                fontSize: isLandscape ? 48 : 32,
-                              ),
-                              child: AnimatedTextKit(
-                                animatedTexts: [
-                                  TypewriterAnimatedText(
-                                    'INDIAN ARMY',
-                                    speed: const Duration(milliseconds: 150),
-                                    cursor: '_',
-                                  ),
-                                  TypewriterAnimatedText(
-                                    'WELCOME',
-                                    speed: const Duration(milliseconds: 150),
-                                    cursor: '_',
-                                  ),
-                                  TypewriterAnimatedText(
-                                    'JAI HIND',
-                                    speed: const Duration(milliseconds: 150),
-                                    cursor: '_',
-                                  ),
-                                ],
-                                repeatForever: true,
-                                pause: const Duration(seconds: 2),
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 10),
-
-                          Text(
-                            'SEVA ASMAKAM DHARMA',
-                            style: FuturisticTheme.body.copyWith(
-                              color: FuturisticTheme.primaryGold,
-                              letterSpacing: 4.0,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+    return ScaleTransition(
+      scale: _heroScale,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // Glowing Back Plate
+          Container(
+            width: baseSize * 1.1,
+            height: baseSize * 1.1,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: FuturisticTheme.primaryGold.withOpacity(0.2),
+                  blurRadius: 60,
+                  spreadRadius: 10,
+                ),
+              ],
+            ),
+          ),
+          // Video Container
+          ClipRRect(
+            borderRadius: BorderRadius.circular(baseSize),
+            child: Container(
+              width: baseSize,
+              height: baseSize,
+              color: Colors.black,
+              child: Video(
+                controller: _videoController,
+                controls: NoVideoControls,
+                fill: Colors.black,
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          // Tech Ring Overlay
+          SizedBox(
+            width: baseSize * 1.15,
+            height: baseSize * 1.15,
+            child: CircularProgressIndicator(
+              value: 0.7,
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                FuturisticTheme.primaryGold.withOpacity(0.3),
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildWelcomeText(bool isLandscape, double width) {
+    double fontSize = isLandscape ? 48 : 32;
+    if (width < 400) fontSize = 24;
+
+    return SizedBox(
+      height: fontSize * 2.0,
+      child: DefaultTextStyle(
+        style: FuturisticTheme.titleLarge.copyWith(fontSize: fontSize),
+        child: AnimatedTextKit(
+          animatedTexts: [
+            TypewriterAnimatedText(
+              'INDIAN ARMY',
+              speed: const Duration(milliseconds: 150),
+              cursor: '_',
+              textAlign: TextAlign.center,
+            ),
+            TypewriterAnimatedText(
+              'WELCOME',
+              speed: const Duration(milliseconds: 150),
+              cursor: '_',
+              textAlign: TextAlign.center,
+            ),
+            TypewriterAnimatedText(
+              'JAI HIND',
+              speed: const Duration(milliseconds: 150),
+              cursor: '_',
+              textAlign: TextAlign.center,
+            ),
+          ],
+          repeatForever: true,
+          pause: const Duration(seconds: 2),
+        ),
       ),
     );
   }

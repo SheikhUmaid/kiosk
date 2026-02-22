@@ -388,7 +388,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
     final emojiSize = isLandscape ? size.height * 0.22 : size.width * 0.16;
 
     return Scaffold(
-      backgroundColor: FuturisticTheme.bgDark,
+      backgroundColor: FuturisticTheme.bgBlueDark,
       body: Stack(
         children: [
           // Grid Background
@@ -442,11 +442,11 @@ class _FeedBackHomeState extends State<FeedBackHome>
                       width: 80,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: FuturisticTheme.primaryGold,
+                        color: FuturisticTheme.primaryBlue,
                         borderRadius: BorderRadius.circular(2),
                         boxShadow: const [
                           BoxShadow(
-                            color: FuturisticTheme.primaryGold,
+                            color: FuturisticTheme.primaryBlue,
                             blurRadius: 10,
                           ),
                         ],
@@ -495,7 +495,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
                 ),
                 borderGradient: LinearGradient(
                   colors: [
-                    FuturisticTheme.primaryGold.withOpacity(0.5),
+                    FuturisticTheme.primaryBlue.withOpacity(0.5),
                     Colors.white.withOpacity(0.1),
                   ],
                 ),
@@ -513,7 +513,7 @@ class _FeedBackHomeState extends State<FeedBackHome>
                       textAlign: TextAlign.center,
                       style: FuturisticTheme.body.copyWith(
                         fontSize: 20,
-                        color: FuturisticTheme.primaryGold,
+                        color: FuturisticTheme.primaryBlue,
                       ),
                     ),
                   ],
@@ -555,19 +555,21 @@ class _FeedBackHomeState extends State<FeedBackHome>
                       border: 2,
                       linearGradient: LinearGradient(
                         colors: [
-                          FuturisticTheme.primaryGold.withOpacity(0.2),
-                          FuturisticTheme.primaryGold.withOpacity(0.05),
+                          FuturisticTheme.primaryBlue.withOpacity(0.2),
+                          FuturisticTheme.primaryBlue.withOpacity(0.05),
                         ],
                       ),
                       borderGradient: LinearGradient(
                         colors: [
-                          FuturisticTheme.primaryGold,
-                          FuturisticTheme.primaryGold.withOpacity(0.5),
+                          FuturisticTheme.primaryBlue,
+                          FuturisticTheme.primaryBlue.withOpacity(0.5),
                         ],
                       ),
                       child: Text(
                         'SUBMIT / सबमिट',
-                        style: FuturisticTheme.buttonText,
+                        style: FuturisticTheme.buttonText.copyWith(
+                          color: FuturisticTheme.primaryBlue,
+                        ),
                       ),
                     ),
                   ),
@@ -594,15 +596,15 @@ class _FeedBackHomeState extends State<FeedBackHome>
             height: 6,
             decoration: BoxDecoration(
               color: isCurrent
-                  ? FuturisticTheme.primaryGold
+                  ? FuturisticTheme.primaryBlue
                   : isCompleted
-                  ? FuturisticTheme.primaryGold.withOpacity(0.5)
+                  ? FuturisticTheme.primaryBlue.withOpacity(0.5)
                   : Colors.white.withOpacity(0.2),
               borderRadius: BorderRadius.circular(3),
               boxShadow: isCurrent
                   ? [
                       BoxShadow(
-                        color: FuturisticTheme.primaryGold,
+                        color: FuturisticTheme.primaryBlue,
                         blurRadius: 8,
                         spreadRadius: 1,
                       ),

@@ -227,7 +227,7 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
     final isLandscape = size.width > size.height;
 
     return Scaffold(
-      backgroundColor: FuturisticTheme.bgDark,
+      backgroundColor: FuturisticTheme.bgBlueDark,
       body: Stack(
         children: [
           // Grid Background
@@ -260,11 +260,11 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                           width: 60,
                           height: 4,
                           decoration: BoxDecoration(
-                            color: FuturisticTheme.primaryGold,
+                            color: FuturisticTheme.primaryBlue,
                             borderRadius: BorderRadius.circular(2),
                             boxShadow: const [
                               BoxShadow(
-                                color: FuturisticTheme.primaryGold,
+                                color: FuturisticTheme.primaryBlue,
                                 blurRadius: 10,
                               ),
                             ],
@@ -332,14 +332,14 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                       border: 2,
                       linearGradient: LinearGradient(
                         colors: [
-                          FuturisticTheme.primaryGold.withOpacity(0.3),
-                          FuturisticTheme.primaryGold.withOpacity(0.1),
+                          FuturisticTheme.primaryBlue.withOpacity(0.3),
+                          FuturisticTheme.primaryBlue.withOpacity(0.1),
                         ],
                       ),
                       borderGradient: LinearGradient(
                         colors: [
-                          FuturisticTheme.primaryGold,
-                          FuturisticTheme.primaryGold.withOpacity(0.5),
+                          FuturisticTheme.primaryBlue,
+                          FuturisticTheme.primaryBlue.withOpacity(0.5),
                         ],
                       ),
                       child: Text('SUBMIT', style: FuturisticTheme.buttonText),
@@ -399,8 +399,8 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
           borderGradient: LinearGradient(
             colors: isFocused
                 ? [
-                    FuturisticTheme.primaryGold,
-                    FuturisticTheme.primaryGold.withOpacity(0.5),
+                    FuturisticTheme.primaryBlue,
+                    FuturisticTheme.primaryBlue.withOpacity(0.5),
                   ]
                 : [
                     Colors.white.withOpacity(0.1),
@@ -414,7 +414,7 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                 Icon(
                   icon,
                   color: isFocused
-                      ? FuturisticTheme.primaryGold
+                      ? FuturisticTheme.primaryBlue
                       : Colors.white54,
                 ),
                 const SizedBox(width: 20),
@@ -428,7 +428,7 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                         style: FuturisticTheme.body.copyWith(
                           fontSize: 12,
                           color: isFocused
-                              ? FuturisticTheme.primaryGold
+                              ? FuturisticTheme.primaryBlue
                               : Colors.white54,
                         ),
                       ),
@@ -685,12 +685,12 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: isPrimary
-                  ? FuturisticTheme.primaryGold
+                  ? FuturisticTheme.primaryBlue
                   : Colors.white.withOpacity(0.05),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isPrimary
-                    ? FuturisticTheme.primaryGold
+                    ? FuturisticTheme.primaryBlue
                     : Colors.white.withOpacity(0.1),
               ),
             ),

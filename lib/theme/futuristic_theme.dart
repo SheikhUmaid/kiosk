@@ -6,6 +6,13 @@ class FuturisticTheme {
   static const Color bgDark = Color(0xFF0F0505); // Deepest Maroon/Black
   static const Color bgMaroon = Color(0xFF2E0505); // Dark Maroon
   static const Color primaryGold = Color(0xFFFFD700); // Neon Gold
+
+  // Cyber Blue Palette
+  static const Color bgBlueDark = Color(0xFF040B1A); // Deepest Blue
+  static const Color bgBlueMid = Color(0xFF0A1931); // Navy Blue
+  static const Color primaryBlue = Color(0xFF00D1FF); // Neon Blue
+  static const Color accentBlue = Color(0xFF2979FF); // Bright Blue
+
   static const Color accentCyan = Color(0xFF00E5FF); // Cyber Cyan (Optional)
   static const Color surfaceGlass = Color(0x1FFFFFFF); // White 12%
 
