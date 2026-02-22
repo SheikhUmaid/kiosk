@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,8 @@ import 'package:glassmorphism/glassmorphism.dart';
 import 'package:kiosk/main.dart';
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/feedback_provider.dart';
 
 class TakeSelfiePage extends StatefulWidget {
   const TakeSelfiePage({super.key});
@@ -27,6 +30,8 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
 
   // Captured photo
   XFile? _capturedImage;
+
+  bool _showThankYou = false;
 
   // Animations
   late AnimationController _scanController;
@@ -159,31 +164,15 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
       // Copy the captured image to the desired location
       await File(image.path).copy(filePath);
       debugPrint('Selfie saved to $filePath');
-
+      
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Photo saved: $fileName'),
-            backgroundColor: FuturisticTheme.primaryBlue,
-            duration: const Duration(seconds: 2),
-          ),
-        );
+        await context.read<FeedbackProvider>().submitFeedback(filePath);
       }
 
-      await Future.delayed(const Duration(seconds: 2));
-
       if (mounted) {
-        Navigator.of(context).pushAndRemoveUntil(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) =>
-                const KioskLanding(),
-            transitionsBuilder:
-                (context, animation, secondaryAnimation, child) =>
-                    FadeTransition(opacity: animation, child: child),
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-          (route) => false,
-        );
+        setState(() {
+          _showThankYou = true;
+        });
       }
     } catch (e) {
       debugPrint('Save error: $e');
@@ -198,19 +187,15 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
     }
   }
 
-  /// Skip selfie — just go back to landing
-  void _skip() {
-    // Navigate — dispose() will call dispose on controller once the widget is removed
-    Navigator.of(context).pushAndRemoveUntil(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const KioskLanding(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) =>
-            FadeTransition(opacity: animation, child: child),
-        transitionDuration: const Duration(milliseconds: 500),
-      ),
-      (route) => false,
-    );
+  /// Skip selfie — show thank you then landing
+  void _skip() async {
+    await context.read<FeedbackProvider>().submitFeedback('');
+    
+    if (mounted) {
+      setState(() {
+        _showThankYou = true;
+      });
+    }
   }
 
   @override
@@ -277,6 +262,29 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
               child: SlideTransition(
                 position: _entranceSlide,
                 child: _buildCameraUI(size, isLandscape),
+              ),
+            ),
+
+          // Thank You Overlay
+          if (_showThankYou)
+            Positioned.fill(
+              child: FadeTransition(
+                opacity: _entranceFade,
+                child: ArmyThankYouOverlay(
+                  onComplete: () {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) =>
+                            const KioskLanding(),
+                        transitionsBuilder:
+                            (context, animation, secondaryAnimation, child) =>
+                                FadeTransition(opacity: animation, child: child),
+                        transitionDuration: const Duration(milliseconds: 700),
+                      ),
+                      (route) => false,
+                    );
+                  },
+                ),
               ),
             ),
         ],
@@ -721,4 +729,146 @@ class CornerBracketPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+// ─────────────────────────────────────────────────────────
+// Army Thank You Overlay
+// ─────────────────────────────────────────────────────────
+
+class ArmyThankYouOverlay extends StatefulWidget {
+  final VoidCallback onComplete;
+  const ArmyThankYouOverlay({super.key, required this.onComplete});
+
+  @override
+  State<ArmyThankYouOverlay> createState() => _ArmyThankYouOverlayState();
+}
+
+class _ArmyThankYouOverlayState extends State<ArmyThankYouOverlay>
+    with TickerProviderStateMixin {
+  late AnimationController _entranceController;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _fadeAnimation;
+
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _entranceController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200));
+    _scaleAnimation = CurvedAnimation(
+        parent: _entranceController, curve: Curves.elasticOut);
+    _fadeAnimation = CurvedAnimation(
+        parent: _entranceController,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeIn));
+
+    _pulseController = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1000))
+      ..repeat(reverse: true);
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
+        CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+
+    _entranceController.forward();
+
+    Future.delayed(const Duration(milliseconds: 3500), () {
+      if (mounted) {
+        widget.onComplete();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _entranceController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+      child: Container(
+        color: Colors.black.withOpacity(0.85),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ScaleTransition(
+                scale: _scaleAnimation,
+                child: AnimatedBuilder(
+                  animation: _pulseAnimation,
+                  builder: (context, child) => Transform.scale(
+                    scale: _pulseAnimation.value,
+                    child: child,
+                  ),
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: FuturisticTheme.primaryGold.withOpacity(0.4),
+                          blurRadius: 50,
+                          spreadRadius: 10,
+                        )
+                      ],
+                      gradient: RadialGradient(
+                        colors: [
+                          FuturisticTheme.primaryGold.withOpacity(0.4),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.5, 1.0],
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.military_tech,
+                      size: 150,
+                      color: FuturisticTheme.primaryGold,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 40),
+              FadeTransition(
+                opacity: _fadeAnimation,
+                child: Column(
+                  children: [
+                    Text(
+                      'FEEDBACK RECORDED',
+                      style: FuturisticTheme.titleLarge.copyWith(
+                        color: FuturisticTheme.primaryGold,
+                        fontSize: 28,
+                        letterSpacing: 4,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'JAI HIND!',
+                      style: FuturisticTheme.titleLarge.copyWith(
+                        color: Colors.white,
+                        fontSize: 48,
+                        letterSpacing: 8,
+                        fontWeight: FontWeight.bold,
+                        shadows: [
+                          Shadow(
+                            color: Colors.white.withOpacity(0.5),
+                            blurRadius: 20,
+                          )
+                        ],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

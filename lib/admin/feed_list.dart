@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'admin_theme.dart';
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/feedback_provider.dart';
 
 class FeedListPage extends StatefulWidget {
   const FeedListPage({super.key});
@@ -14,124 +17,10 @@ class _FeedListPageState extends State<FeedListPage> {
   String _sortBy = 'Newest';
   final _sorts = ['Newest', 'Oldest', 'Highest Rating', 'Lowest Rating'];
 
-  // ── Mock data ────────────────────────────────────────────────────
-  static final _allFeedbacks = List<_Feedback>.unmodifiable([
-    _Feedback(
-      '1001',
-      'राम कुमार',
-      5,
-      '10:42 AM',
-      '22 Feb 2026',
-      '9876543210',
-      'ACC-001',
-      'बहुत बढ़िया सेवा मिली। कर्मचारी बहुत सहायक थे।',
-      {'सेवा': 5, 'कर्मचारी': 5, 'सुविधा': 4, 'प्रतीक्षा': 4, 'पुनः': 5},
-    ),
-    _Feedback(
-      '1002',
-      'सीता देवी',
-      4,
-      '10:28 AM',
-      '22 Feb 2026',
-      '9876543211',
-      'ACC-002',
-      'अच्छा अनुभव रहा।',
-      {'सेवा': 4, 'कर्मचारी': 4, 'सुविधा': 4, 'प्रतीक्षा': 3, 'पुनः': 4},
-    ),
-    _Feedback(
-      '1003',
-      'अजय सिंह',
-      3,
-      '10:15 AM',
-      '22 Feb 2026',
-      '9876543212',
-      'ACC-003',
-      'ठीक-ठाक अनुभव था, कुछ सुधार की जरूरत है।',
-      {'सेवा': 3, 'कर्मचारी': 3, 'सुविधा': 3, 'प्रतीक्षा': 2, 'पुनः': 3},
-    ),
-    _Feedback(
-      '1004',
-      'प्रिया शर्मा',
-      5,
-      '09:58 AM',
-      '22 Feb 2026',
-      '9876543213',
-      'ACC-004',
-      'बहुत संतुष्ट हूँ।',
-      {'सेवा': 5, 'कर्मचारी': 5, 'सुविधा': 5, 'प्रतीक्षा': 5, 'पुनः': 5},
-    ),
-    _Feedback(
-      '1005',
-      'विजय पटेल',
-      2,
-      '09:41 AM',
-      '22 Feb 2026',
-      '9876543214',
-      'ACC-005',
-      'प्रतीक्षा समय बहुत लंबा था।',
-      {'सेवा': 2, 'कर्मचारी': 3, 'सुविधा': 2, 'प्रतीक्षा': 1, 'पुनः': 2},
-    ),
-    _Feedback(
-      '1006',
-      'मीना गुप्ता',
-      4,
-      '09:30 AM',
-      '22 Feb 2026',
-      '9876543215',
-      'ACC-006',
-      'अच्छी सेवा।',
-      {'सेवा': 4, 'कर्मचारी': 4, 'सुविधा': 4, 'प्रतीक्षा': 3, 'पुनः': 4},
-    ),
-    _Feedback(
-      '1007',
-      'रोहित वर्मा',
-      5,
-      '09:12 AM',
-      '21 Feb 2026',
-      '9876543216',
-      'ACC-007',
-      'उत्कृष्ट सेवा!',
-      {'सेवा': 5, 'कर्मचारी': 5, 'सुविधा': 5, 'प्रतीक्षा': 4, 'पुनः': 5},
-    ),
-    _Feedback(
-      '1008',
-      'अनीता यादव',
-      4,
-      '08:55 AM',
-      '21 Feb 2026',
-      '9876543217',
-      'ACC-008',
-      'संतोषजनक अनुभव।',
-      {'सेवा': 4, 'कर्मचारी': 4, 'सुविधा': 3, 'प्रतीक्षा': 3, 'पुनः': 4},
-    ),
-    _Feedback(
-      '1009',
-      'सुरेश मिश्र',
-      1,
-      '08:30 AM',
-      '21 Feb 2026',
-      '9876543218',
-      'ACC-009',
-      'बहुत खराब अनुभव।',
-      {'सेवा': 1, 'कर्मचारी': 1, 'सुविधा': 2, 'प्रतीक्षा': 1, 'पुनः': 1},
-    ),
-    _Feedback(
-      '1010',
-      'कविता सिंह',
-      5,
-      '08:10 AM',
-      '21 Feb 2026',
-      '9876543219',
-      'ACC-010',
-      'शानदार सेवा।',
-      {'सेवा': 5, 'कर्मचारी': 5, 'सुविधा': 5, 'प्रतीक्षा': 5, 'पुनः': 5},
-    ),
-  ]);
-
   _Feedback? _expanded;
 
-  List<_Feedback> get _filtered {
-    var list = _allFeedbacks.where((f) {
+  List<_Feedback> _getFiltered(List<_Feedback> allFeedbacks) {
+    var list = allFeedbacks.where((f) {
       final q = _search.toLowerCase();
       final matchSearch =
           q.isEmpty ||
@@ -156,9 +45,134 @@ class _FeedListPageState extends State<FeedListPage> {
     return list;
   }
 
+  Future<void> _confirmDelete(BuildContext context, _Feedback fb) async {
+    final provider = context.read<FeedbackProvider>();
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Feedback'),
+        content: Text('Are you sure you want to delete feedback from ${fb.name}?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AdminTheme.danger)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await provider.deleteFeedback(int.parse(fb.id));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Feedback deleted')));
+        setState(() {
+          if (_expanded?.id == fb.id) _expanded = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _editFeedback(BuildContext context, _Feedback fb) async {
+    final provider = context.read<FeedbackProvider>();
+    
+    final fnCtrl = TextEditingController(text: fb.firstName);
+    final lnCtrl = TextEditingController(text: fb.lastName);
+    final phCtrl = TextEditingController(text: fb.mobile != '-' ? fb.mobile : '');
+    final unCtrl = TextEditingController(text: fb.account != '-' ? fb.account : '');
+    final remCtrl = TextEditingController(text: fb.comment);
+
+    final save = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Edit Feedback'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: fnCtrl, decoration: const InputDecoration(labelText: 'First Name')),
+              TextField(controller: lnCtrl, decoration: const InputDecoration(labelText: 'Last Name')),
+              TextField(controller: phCtrl, decoration: const InputDecoration(labelText: 'Phone')),
+              TextField(controller: unCtrl, decoration: const InputDecoration(labelText: 'Unit Number / Account')),
+              TextField(controller: remCtrl, decoration: const InputDecoration(labelText: 'Remarks')),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+             onPressed: () => Navigator.pop(ctx, true), 
+             child: const Text('Save', style: TextStyle(color: AdminTheme.primary))
+          ),
+        ],
+      ),
+    );
+
+    if (save == true) {
+      await provider.updateFeedbackDetails(
+        int.parse(fb.id),
+        firstName: fnCtrl.text.trim(),
+        lastName: lnCtrl.text.trim(),
+        phone: phCtrl.text.trim(),
+        unitNumber: unCtrl.text.trim(),
+        remarks: remCtrl.text.trim(),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Feedback updated')));
+        setState(() {
+          _expanded = null;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final list = _filtered;
+    final provider = context.watch<FeedbackProvider>();
+    
+    final allFeedbacks = provider.feedbacks.map((f) {
+      final idStr = (f['id'] ?? '').toString();
+      final nameStr = '${f['firstName'] ?? ''} ${f['lastName'] ?? ''}'.trim();
+      
+      String timeStr = '';
+      String dateStr = '';
+      if (f['timestamp'] != null) {
+        final dt = DateTime.parse(f['timestamp']).toLocal();
+        dateStr = "${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}";
+        timeStr = "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
+      }
+
+      Map<String, int> answers = {};
+      if (f['answers'] != null && f['answers'].toString().isNotEmpty) {
+        try {
+          final decoded = jsonDecode(f['answers']) as Map<String, dynamic>;
+          answers = decoded.map((k, v) => MapEntry(k, int.parse(v.toString())));
+        } catch (_) {}
+      }
+
+      int avgRating = 0;
+      if (answers.isNotEmpty) {
+        int sum = 0;
+        answers.values.forEach((v) => sum += v);
+        avgRating = (sum / answers.length).round();
+      }
+
+      return _Feedback(
+        idStr,
+        f['firstName'] ?? '',
+        f['lastName'] ?? '',
+        nameStr.isEmpty ? 'Unknown' : nameStr,
+        avgRating,
+        timeStr,
+        dateStr,
+        f['phone'] ?? '-',
+        f['unitNumber'] ?? '-',
+        f['remarks'] ?? '',
+        answers,
+      );
+    }).toList();
+
+    final list = _getFiltered(allFeedbacks);
 
     return Column(
       children: [
@@ -513,6 +527,25 @@ class _FeedListPageState extends State<FeedListPage> {
               );
             }).toList(),
           ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton.icon(
+                onPressed: () => _editFeedback(context, fb),
+                icon: const Icon(Icons.edit, size: 16),
+                label: const Text('Edit'),
+                style: TextButton.styleFrom(foregroundColor: AdminTheme.primary),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: () => _confirmDelete(context, fb),
+                icon: const Icon(Icons.delete_outline, size: 16),
+                label: const Text('Delete'),
+                style: TextButton.styleFrom(foregroundColor: AdminTheme.danger),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -553,12 +586,14 @@ class _FeedListPageState extends State<FeedListPage> {
 }
 
 class _Feedback {
-  final String id, name, time, date, mobile, account, comment;
+  final String id, firstName, lastName, name, time, date, mobile, account, comment;
   final int rating;
   final Map<String, int> answers;
 
   const _Feedback(
     this.id,
+    this.firstName,
+    this.lastName,
     this.name,
     this.rating,
     this.time,

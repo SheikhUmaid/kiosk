@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:kiosk/feedback/home.dart';
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:glassmorphism/glassmorphism.dart';
-import 'package:kiosk/feedback/selfie.dart'; // Navigation destination, assuming selfie next
+import 'package:kiosk/feedback/selfie.dart';
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/feedback_provider.dart';
 
 class FeedBackRemarks extends StatefulWidget {
   const FeedBackRemarks({super.key});
@@ -165,11 +166,13 @@ class _FeedBackRemarksState extends State<FeedBackRemarks>
   }
 
   void _onSubmit() {
+    context.read<FeedbackProvider>().setRemarks(_remarkController.text.trim());
     // Navigate immediately to next screen 
     _navigateTo(const TakeSelfiePage());
   }
   
   void _onSkip() {
+    context.read<FeedbackProvider>().setRemarks('');
     // Navigate immediately to next screen
     _navigateTo(const TakeSelfiePage());
   }

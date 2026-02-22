@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:kiosk/feedback/home.dart';
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:glassmorphism/glassmorphism.dart';
-import 'package:kiosk/main.dart'; // For navigation back to Home
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/feedback_provider.dart';
 
 class FeedBackDetails extends StatefulWidget {
   const FeedBackDetails({super.key});
@@ -200,6 +201,15 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
       _phoneFocus.requestFocus();
       return;
     }
+    
+    // Save details to provider
+    context.read<FeedbackProvider>().setDetails(
+      _phoneController.text.trim(),
+      _firstNameController.text.trim(),
+      _lastNameController.text.trim(),
+      _unitNumberController.text.trim(),
+    );
+
     // Navigate immediately to FeedBackHome — no delay, no thank-you screen
     Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(

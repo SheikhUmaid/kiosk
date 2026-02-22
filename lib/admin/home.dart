@@ -1,4 +1,7 @@
 import 'dart:math' as math;
+import 'dart:convert';
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/feedback_provider.dart';
 import 'package:flutter/material.dart';
 import 'admin_theme.dart';
 import 'feed_list.dart';
@@ -370,35 +373,6 @@ class _DashboardContentState extends State<_DashboardContent>
   late final Animation<double> _anim;
   int _chartTab = 0;
 
-  static const _ratingDist = [42, 78, 198, 412, 517];
-  static const _qLabels = [
-    'सेवा गुणवत्ता',
-    'कर्मचारी व्यवहार',
-    'सुविधाएँ',
-    'प्रतीक्षा समय',
-    'पुनः आगमन',
-  ];
-  static const _qScores = [4.1, 4.4, 3.8, 3.6, 4.6];
-  static const _weekLabels = [
-    'सोम',
-    'मंगल',
-    'बुध',
-    'गुरु',
-    'शुक्र',
-    'शनि',
-    'रवि',
-  ];
-  static const _weekCounts = [28, 35, 22, 41, 38, 45, 38];
-  static const _weekRatings = [3.9, 4.1, 4.0, 4.3, 4.2, 4.5, 4.2];
-  static const _recent = <_FbRow>[
-    _FbRow('राम कुमार', 5, '10:42 AM', 'बहुत बढ़िया सेवा'),
-    _FbRow('सीता देवी', 4, '10:28 AM', 'अच्छा अनुभव'),
-    _FbRow('अजय सिंह', 3, '10:15 AM', 'ठीक-ठाक'),
-    _FbRow('प्रिया शर्मा', 5, '09:58 AM', 'बहुत संतुष्ट'),
-    _FbRow('विजय पटेल', 2, '09:41 AM', 'सुधार आवश्यक'),
-    _FbRow('मीना गुप्ता', 4, '09:30 AM', 'अच्छी सेवा'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -418,13 +392,129 @@ class _DashboardContentState extends State<_DashboardContent>
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<FeedbackProvider>();
+    final fbs = provider.feedbacks;
+
+    int totalFb = fbs.length;
+    int todayFb = 0;
+    double sumRating = 0.0;
+    int satisfiedCnt = 0;
+    List<int> ratingDist = [0, 0, 0, 0, 0];
+    
+    Map<String, List<int>> qStats = {};
+    List<_FbRow> recentFbs = [];
+    DateTime now = DateTime.now();
+
+    for (int i = 0; i < fbs.length; i++) {
+       final f = fbs[i];
+       
+       DateTime? dt;
+       if (f['timestamp'] != null) {
+          dt = DateTime.parse(f['timestamp']).toLocal();
+       }
+       if (dt != null && dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+          todayFb++;
+       }
+
+       Map<String, int> answers = {};
+       if (f['answers'] != null && f['answers'].toString().isNotEmpty) {
+         try {
+           final decoded = jsonDecode(f['answers']) as Map<String, dynamic>;
+           answers = decoded.map((k, v) => MapEntry(k, int.parse(v.toString())));
+         } catch(_) {}
+       }
+
+       int avgR = 0;
+       if (answers.isNotEmpty) {
+          int s = 0;
+          answers.forEach((k, v) {
+            s += v;
+            if (!qStats.containsKey(k)) qStats[k] = [];
+            qStats[k]!.add(v);
+          });
+          avgR = (s / answers.length).round();
+       }
+
+       sumRating += avgR;
+       if (avgR >= 4) satisfiedCnt++;
+       if (avgR >= 1 && avgR <= 5) {
+          ratingDist[avgR - 1]++;
+       }
+
+       if (recentFbs.length < 6) {
+         String t = dt != null ? "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}" : '';
+         String n = "${f['firstName'] ?? ''} ${f['lastName'] ?? ''}".trim();
+         if (n.isEmpty && f['phone'] != null && f['phone'].toString().isNotEmpty) n = f['phone'].toString();
+         if (n.isEmpty && f['unitNumber'] != null && f['unitNumber'].toString().isNotEmpty) n = f['unitNumber'].toString();
+         if (n.isEmpty) n = 'Unknown';
+         String rm = f['remarks'] ?? '';
+         recentFbs.add(_FbRow(n, avgR, t, rm.isNotEmpty ? rm : 'No comment'));
+       }
+    }
+
+    double avgRating = totalFb > 0 ? sumRating / totalFb : 0.0;
+    int satisfaction = totalFb > 0 ? ((satisfiedCnt / totalFb) * 100).round() : 0;
+
+    List<String> qLabels = [];
+    List<double> qScores = [];
+    qStats.forEach((k, v) {
+      qLabels.add(k);
+      double avg = v.fold(0, (a, b) => (a as num).toInt() + b) / v.length;
+      qScores.add(avg);
+    });
+    
+    // Default values if no question ratings
+    if (qLabels.isEmpty) {
+        qLabels = ['No Data Yet'];
+        qScores = [0.0];
+    }
+    
+    List<String> wLabels = [];
+    List<int> wCounts = [0, 0, 0, 0, 0, 0, 0];
+    List<double> wRatings = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+    List<List<int>> wRatingLists = List.generate(7, (_) => []);
+
+    for (int i = 6; i >= 0; i--) {
+       DateTime d = now.subtract(Duration(days: i));
+       wLabels.add("${d.day}/${d.month}");
+    }
+
+    for (var f in fbs) {
+       if (f['timestamp'] != null) {
+          DateTime dt = DateTime.parse(f['timestamp']).toLocal();
+          int diff = DateTime(now.year, now.month, now.day).difference(DateTime(dt.year, dt.month, dt.day)).inDays;
+          if (diff >= 0 && diff < 7) {
+             int idx = 6 - diff;
+             wCounts[idx]++;
+             
+             Map<String, int> ans = {};
+             if (f['answers'] != null && f['answers'].toString().isNotEmpty) {
+               try {
+                 final decoded = jsonDecode(f['answers']) as Map<String, dynamic>;
+                 ans = decoded.map((k, v) => MapEntry(k, int.parse(v.toString())));
+               } catch(_) {}
+             }
+             if (ans.isNotEmpty) {
+                int s = 0;
+                ans.values.forEach((v) => s += v);
+                wRatingLists[idx].add((s / ans.length).round());
+             }
+          }
+       }
+    }
+    for (int i = 0; i < 7; i++) {
+       if (wRatingLists[i].isNotEmpty) {
+          wRatings[i] = wRatingLists[i].fold(0, (a, b) => (a as num).toInt() + b) / wRatingLists[i].length;
+       }
+    }
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Stat cards ─────────────────────────────────────────
-          _buildStatRow(),
+          _buildStatRow(totalFb.toString(), todayFb.toString(), avgRating.toStringAsFixed(1), '$satisfaction%'),
           const SizedBox(height: 24),
 
           // ── Chart tabs ─────────────────────────────────────────
@@ -440,12 +530,12 @@ class _DashboardContentState extends State<_DashboardContent>
           const SizedBox(height: 16),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 300),
-            child: _buildChart(),
+            child: _buildChart(ratingDist, qLabels, qScores, wLabels, wCounts, wRatings),
           ),
           const SizedBox(height: 24),
 
           // ── Recent feedbacks ───────────────────────────────────
-          _buildRecent(),
+          _buildRecent(recentFbs),
           const SizedBox(height: 24),
         ],
       ),
@@ -482,27 +572,27 @@ class _DashboardContentState extends State<_DashboardContent>
     );
   }
 
-  Widget _buildStatRow() {
+  Widget _buildStatRow(String totalFb, String todayFb, String avgRating, String satisfaction) {
     final stats = [
       _Stat(
         'Total Feedback',
         'कुल फ़ीडबैक',
-        '1,247',
+        totalFb,
         Icons.feedback_outlined,
         AdminTheme.primary,
       ),
-      _Stat('Today', 'आज', '38', Icons.today_outlined, AdminTheme.accent),
+      _Stat('Today', 'आज', todayFb, Icons.today_outlined, AdminTheme.accent),
       _Stat(
         'Avg Rating',
         'औसत रेटिंग',
-        '4.2',
+        avgRating,
         Icons.star_outline_rounded,
         AdminTheme.warning,
       ),
       _Stat(
         'Satisfaction',
         'संतुष्टि',
-        '87%',
+        satisfaction,
         Icons.sentiment_satisfied_alt_outlined,
         AdminTheme.success,
       ),
@@ -569,20 +659,20 @@ class _DashboardContentState extends State<_DashboardContent>
     );
   }
 
-  Widget _buildChart() {
+  Widget _buildChart(List<int> rDist, List<String> qL, List<double> qS, List<String> wL, List<int> wC, List<double> wR) {
     switch (_chartTab) {
       case 0:
-        return _buildRatingDist();
+        return _buildRatingDist(rDist);
       case 1:
-        return _buildQBreakdown();
+        return _buildQBreakdown(qL, qS);
       default:
-        return _buildWeekly();
+        return _buildWeekly(wL, wC, wR);
     }
   }
 
-  Widget _buildRatingDist() {
-    final total = _ratingDist.fold<int>(0, (a, b) => a + b);
-    final maxVal = _ratingDist.reduce(math.max).toDouble();
+  Widget _buildRatingDist(List<int> rDist) {
+    final total = rDist.fold<int>(0, (a, b) => a + b);
+    final maxVal = rDist.isEmpty ? 1.0 : (rDist.reduce(math.max).toDouble() == 0 ? 1.0 : rDist.reduce(math.max).toDouble());
     final barColors = [
       AdminTheme.danger,
       const Color(0xFFE65100),
@@ -602,8 +692,8 @@ class _DashboardContentState extends State<_DashboardContent>
           const SizedBox(height: 20),
           ...List.generate(5, (i) {
             final star = 5 - i;
-            final count = _ratingDist[star - 1];
-            final pct = count / total * 100;
+            final count = rDist[star - 1];
+            final pct = total == 0 ? 0.0 : count / total * 100;
             return Padding(
               padding: const EdgeInsets.only(bottom: 10),
               child: Row(
@@ -661,7 +751,7 @@ class _DashboardContentState extends State<_DashboardContent>
     );
   }
 
-  Widget _buildQBreakdown() {
+  Widget _buildQBreakdown(List<String> qLabels, List<double> qScores) {
     return Container(
       key: const ValueKey('qb'),
       padding: const EdgeInsets.all(20),
@@ -671,8 +761,11 @@ class _DashboardContentState extends State<_DashboardContent>
         children: [
           _chartHeader('Per-Question Analysis', 'प्रश्न-वार विश्लेषण'),
           const SizedBox(height: 20),
-          ...List.generate(_qLabels.length, (i) {
-            final score = _qScores[i];
+          if (qLabels.length == 1 && qLabels[0] == 'No Data Yet')
+             const Text('Not enough data to analyze individual questions', style: TextStyle(color: AdminTheme.textMuted)),
+          if (!(qLabels.length == 1 && qLabels[0] == 'No Data Yet'))
+          ...List.generate(qLabels.length, (i) {
+            final score = qScores[i];
             final color = _scoreColor(score);
             return Padding(
               padding: const EdgeInsets.only(bottom: 18),
@@ -682,7 +775,7 @@ class _DashboardContentState extends State<_DashboardContent>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_qLabels[i], style: AdminTheme.label),
+                      Text(qLabels[i], style: AdminTheme.label),
                       Text(
                         '${score.toStringAsFixed(1)} / 5',
                         style: TextStyle(
@@ -715,7 +808,7 @@ class _DashboardContentState extends State<_DashboardContent>
     );
   }
 
-  Widget _buildWeekly() {
+  Widget _buildWeekly(List<String> wLabels, List<int> wCounts, List<double> wRatings) {
     return Container(
       key: const ValueKey('wt'),
       padding: const EdgeInsets.all(20),
@@ -733,9 +826,9 @@ class _DashboardContentState extends State<_DashboardContent>
                 size: const Size(double.infinity, 180),
                 painter: _WeeklyPainter(
                   progress: _anim.value,
-                  counts: _weekCounts,
-                  ratings: _weekRatings,
-                  labels: _weekLabels,
+                  counts: wCounts.isEmpty ? [0] : wCounts,
+                  ratings: wRatings.isEmpty ? [0.0] : wRatings,
+                  labels: wLabels.isEmpty ? [''] : wLabels,
                 ),
               ),
             ),
@@ -769,7 +862,7 @@ class _DashboardContentState extends State<_DashboardContent>
     ],
   );
 
-  Widget _buildRecent() {
+  Widget _buildRecent(List<_FbRow> recentFbs) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -781,10 +874,18 @@ class _DashboardContentState extends State<_DashboardContent>
           ],
         ),
         const SizedBox(height: 12),
+        if (recentFbs.isEmpty)
+          Container(
+             width: double.infinity,
+             padding: const EdgeInsets.all(20),
+             decoration: AdminTheme.card(),
+             child: const Center(child: Text("No feedbacks recorded yet.", style: TextStyle(color: AdminTheme.textMuted)))
+          )
+        else
         Container(
           decoration: AdminTheme.card(),
           child: Column(
-            children: _recent.asMap().entries.map((e) {
+            children: recentFbs.asMap().entries.map((e) {
               final i = e.key;
               final fb = e.value;
               return Container(
@@ -793,7 +894,7 @@ class _DashboardContentState extends State<_DashboardContent>
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  border: i < _recent.length - 1
+                  border: i < recentFbs.length - 1
                       ? const Border(
                           bottom: BorderSide(
                             color: AdminTheme.border,

@@ -3,10 +3,10 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:kiosk/theme/futuristic_theme.dart';
 import 'package:glassmorphism/glassmorphism.dart';
-import 'package:kiosk/feedback/selfie.dart';
 import 'package:kiosk/feedback/remarks.dart';
 import 'package:provider/provider.dart';
 import 'package:kiosk/providers/question_provider.dart';
+import 'package:kiosk/providers/feedback_provider.dart';
 
 class FeedBackHome extends StatefulWidget {
   const FeedBackHome({super.key});
@@ -303,33 +303,28 @@ class _FeedBackHomeState extends State<FeedBackHome>
   void _onSubmit() {
     if (!_answers.containsKey(_currentQuestion)) return;
 
+    final feedbackProvider = context.read<FeedbackProvider>();
+    final questions = context.read<QuestionProvider>().questions;
+    
+    feedbackProvider.answers.clear();
+    _answers.forEach((qIndex, optionIndex) {
+      final q = questions[qIndex]['eng'] as String;
+      final val = _options[optionIndex].value;
+      feedbackProvider.addAnswer(q, val);
+    });
+
     // Proceed to Remarks Page
-    Navigator.of(context).push(
+    Navigator.of(context).pushAndRemoveUntil(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             const FeedBackRemarks(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
+        transitionDuration: const Duration(milliseconds: 500),
       ),
+      (route) => false,
     );
-
-    // Note: Logic has changed from "Thank You" to "Details".
-    // If the user wants Thank You first, we can do that, but usually details come before or after.
-    // The previous code had _submitted = true showing Thank You immediately.
-    // But Step 111 Impl Plan says "Details Form" is next.
-    // I'll stick to the original flow: Show Thank You here if it was final submit?
-    // Actually the previous code didn't navigate to Details.
-    // Wait, the User Objective in Step 1 was "Feedback -> Details".
-    // I'll make sure to navigate to Details on submit.
-    // But currently `details.dart` exists.
-    // I'll assume `_onSubmit` navigates to `FeedBackDetails`.
-  }
-
-  void _submitData() {
-    // This is the actual final submit after Details.
-    // But here in Home, we just collect answers.
-    // I'll change _onSubmit to navigate.
   }
 
   void _resetAll() {

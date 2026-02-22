@@ -1,4 +1,7 @@
 import 'dart:math' as math;
+import 'dart:convert';
+import 'package:provider/provider.dart';
+import 'package:kiosk/providers/feedback_provider.dart';
 import 'package:flutter/material.dart';
 import 'admin_theme.dart';
 
@@ -16,58 +19,6 @@ class _StatisticsPageState extends State<StatisticsPage>
 
   String _selectedRange = 'This Month';
   final _ranges = ['Today', 'This Week', 'This Month', 'This Year'];
-
-  // ── Mock data ────────────────────────────────────────────────────
-  static const _monthLabels = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  static const _monthlyCounts = [
-    210,
-    185,
-    240,
-    280,
-    310,
-    265,
-    290,
-    330,
-    275,
-    350,
-    320,
-    380,
-  ];
-  static const _monthlyRatings = [
-    3.9,
-    4.0,
-    4.1,
-    4.2,
-    4.0,
-    4.3,
-    4.2,
-    4.4,
-    4.1,
-    4.5,
-    4.3,
-    4.6,
-  ];
-
-  static const _performers = <_PerfRow>[
-    _PerfRow('HOW WAS OUR SERVICE?', 'सेवा गुणवत्ता', 4.6, true),
-    _PerfRow('VISIT AGAIN?', 'पुनः आगमन', 4.4, true),
-    _PerfRow('STAFF HELPFUL?', 'कर्मचारी व्यवहार', 4.1, true),
-    _PerfRow('FACILITY CONDITION?', 'सुविधाएँ', 3.8, false),
-    _PerfRow('WAITING TIME?', 'प्रतीक्षा समय', 3.6, false),
-  ];
 
   @override
   void initState() {
@@ -88,6 +39,95 @@ class _StatisticsPageState extends State<StatisticsPage>
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<FeedbackProvider>();
+    final allFbs = provider.feedbacks;
+
+    DateTime now = DateTime.now();
+    DateTime startDate = DateTime(now.year, now.month, now.day);
+    if (_selectedRange == 'Today') {
+       startDate = DateTime(now.year, now.month, now.day);
+    } else if (_selectedRange == 'This Week') {
+       int diff = now.weekday - 1; // Mon=1
+       startDate = DateTime(now.year, now.month, now.day - diff);
+    } else if (_selectedRange == 'This Month') {
+       startDate = DateTime(now.year, now.month, 1);
+    } else if (_selectedRange == 'This Year') {
+       startDate = DateTime(now.year, 1, 1);
+    }
+
+    int totalF = 0;
+    double sumR = 0;
+    int sat = 0;
+    List<int> starCounts = [0,0,0,0,0];
+
+    Map<String, List<int>> qStats = {};
+    
+    // For monthly chart (always show 12 months for this year)
+    List<int> mCounts = List.filled(12, 0);
+    List<List<int>> mRatingsLists = List.generate(12, (_) => []);
+
+    for (var f in allFbs) {
+       DateTime? dt;
+       if (f['timestamp'] != null) {
+          dt = DateTime.parse(f['timestamp']).toLocal();
+       }
+       if (dt == null) continue;
+
+       Map<String, int> answers = {};
+       if (f['answers'] != null && f['answers'].toString().isNotEmpty) {
+         try {
+           final decoded = jsonDecode(f['answers']) as Map<String, dynamic>;
+           answers = decoded.map((k, v) => MapEntry(k, int.parse(v.toString())));
+         } catch(_) {}
+       }
+
+       int avgR = 0;
+       if (answers.isNotEmpty) {
+          int s = 0;
+          answers.values.forEach((v) => s += v);
+          avgR = (s / answers.length).round();
+       }
+
+       // For Monthly Chart (Overall this year)
+       if (dt.year == now.year) {
+          mCounts[dt.month - 1]++;
+          if (answers.isNotEmpty) mRatingsLists[dt.month - 1].add(avgR);
+       }
+
+       // For Filtered KPIs
+       bool isInRange = dt.isAfter(startDate.subtract(const Duration(seconds: 1)));
+       if (isInRange) {
+          totalF++;
+          sumR += avgR;
+          if (avgR >= 4) sat++;
+          if (avgR >= 1 && avgR <= 5) starCounts[avgR - 1]++;
+          
+          answers.forEach((k, v) {
+            if (!qStats.containsKey(k)) qStats[k] = [];
+            qStats[k]!.add(v);
+          });
+       }
+    }
+
+    double avgRating = totalF > 0 ? sumR / totalF : 0.0;
+    double satPct = totalF > 0 ? sat / totalF : 0.0;
+
+    List<double> mRatings = List.filled(12, 0.0);
+    for (int i=0; i<12; i++) {
+       if (mRatingsLists[i].isNotEmpty) {
+          mRatings[i] = mRatingsLists[i].fold(0, (a, b) => (a as num).toInt() + b) / mRatingsLists[i].length;
+       }
+    }
+
+    List<_PerfRow> perfRows = [];
+    qStats.forEach((k, v) {
+       double qAvg = v.fold(0, (a, b) => (a as num).toInt() + b) / v.length;
+       perfRows.add(_PerfRow(k.toUpperCase(), '', qAvg, qAvg >= 4.0));
+    });
+    perfRows.sort((a,b) => b.score.compareTo(a.score)); // Sort highest first
+    
+    final monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -98,20 +138,20 @@ class _StatisticsPageState extends State<StatisticsPage>
           const SizedBox(height: 24),
 
           // ── KPI row ─────────────────────────────────────────────
-          _buildKpiRow(),
+          _buildKpiRow(totalF.toString(), avgRating.toStringAsFixed(1), '${(satPct * 100).round()}%'),
           const SizedBox(height: 24),
 
           // ── Monthly trend ────────────────────────────────────────
-          _buildMonthlyChart(),
+          _buildMonthlyChart(monthLabels, mCounts, mRatings),
           const SizedBox(height: 24),
 
           // ── Satisfaction gauge + Performers ─────────────────────
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(flex: 4, child: _buildGauge()),
+              Expanded(flex: 4, child: _buildGauge(satPct, starCounts, totalF)),
               const SizedBox(width: 20),
-              Expanded(flex: 6, child: _buildPerformers()),
+              Expanded(flex: 6, child: _buildPerformers(perfRows)),
             ],
           ),
           const SizedBox(height: 24),
@@ -171,36 +211,36 @@ class _StatisticsPageState extends State<StatisticsPage>
   }
 
   // ── KPI row ──────────────────────────────────────────────────────
-  Widget _buildKpiRow() {
+  Widget _buildKpiRow(String totalSubmits, String avgRating, String sat) {
     final kpis = [
       _Kpi(
         'Total Submissions',
-        '3,623',
-        '+12.4%',
+        totalSubmits,
+        '',
         true,
         Icons.feedback_outlined,
         AdminTheme.primary,
       ),
       _Kpi(
         'Avg Rating',
-        '4.2',
-        '+0.3',
+        avgRating,
+        '',
         true,
         Icons.star_outline_rounded,
         AdminTheme.warning,
       ),
       _Kpi(
         'Satisfaction Rate',
-        '87%',
-        '+5.1%',
+        sat,
+        '',
         true,
         Icons.sentiment_satisfied_alt_outlined,
         AdminTheme.success,
       ),
       _Kpi(
         'Pending Review',
-        '14',
-        '-3',
+        '0',
+        '',
         false,
         Icons.pending_outlined,
         AdminTheme.danger,
@@ -233,7 +273,7 @@ class _StatisticsPageState extends State<StatisticsPage>
                             .withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
-                      child: Text(
+                      child: kpi.delta.isNotEmpty ? Text(
                         kpi.delta,
                         style: TextStyle(
                           fontSize: 11,
@@ -242,7 +282,7 @@ class _StatisticsPageState extends State<StatisticsPage>
                               ? AdminTheme.success
                               : AdminTheme.danger,
                         ),
-                      ),
+                      ) : const SizedBox(),
                     ),
                   ],
                 ),
@@ -269,12 +309,12 @@ class _StatisticsPageState extends State<StatisticsPage>
             ),
           ),
         );
-      }).toList(),
+       }).toList(),
     );
   }
 
   // ── Monthly trend chart ──────────────────────────────────────────
-  Widget _buildMonthlyChart() {
+  Widget _buildMonthlyChart(List<String> monthLabels, List<int> mCounts, List<double> mRatings) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AdminTheme.card(),
@@ -299,9 +339,9 @@ class _StatisticsPageState extends State<StatisticsPage>
                 size: const Size(double.infinity, 200),
                 painter: _MonthlyPainter(
                   progress: _anim.value,
-                  counts: _monthlyCounts,
-                  ratings: _monthlyRatings,
-                  labels: _monthLabels,
+                  counts: mCounts,
+                  ratings: mRatings,
+                  labels: monthLabels,
                 ),
               ),
             ),
@@ -312,7 +352,7 @@ class _StatisticsPageState extends State<StatisticsPage>
   }
 
   // ── Satisfaction gauge ───────────────────────────────────────────
-  Widget _buildGauge() {
+  Widget _buildGauge(double satPct, List<int> starCounts, int totalF) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AdminTheme.card(),
@@ -326,13 +366,13 @@ class _StatisticsPageState extends State<StatisticsPage>
               width: 160,
               height: 160,
               child: CustomPaint(
-                painter: _GaugePainter(value: 0.87 * _anim.value),
+                painter: _GaugePainter(value: satPct * _anim.value),
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '87%',
+                        '${(satPct * 100).round()}%',
                         style: TextStyle(
                           fontSize: 32,
                           fontWeight: FontWeight.w800,
@@ -353,11 +393,11 @@ class _StatisticsPageState extends State<StatisticsPage>
             ),
           ),
           const SizedBox(height: 20),
-          _gaugeRow('Very Good', '5★', 0.41, AdminTheme.success),
-          _gaugeRow('Good', '4★', 0.33, AdminTheme.accent),
-          _gaugeRow('Average', '3★', 0.16, AdminTheme.warning),
-          _gaugeRow('Poor', '2★', 0.06, const Color(0xFFE65100)),
-          _gaugeRow('Bad', '1★', 0.03, AdminTheme.danger),
+          _gaugeRow('Very Good', '5★', totalF > 0 ? starCounts[4] / totalF : 0.0, AdminTheme.success),
+          _gaugeRow('Good', '4★', totalF > 0 ? starCounts[3] / totalF : 0.0, AdminTheme.accent),
+          _gaugeRow('Average', '3★', totalF > 0 ? starCounts[2] / totalF : 0.0, AdminTheme.warning),
+          _gaugeRow('Poor', '2★', totalF > 0 ? starCounts[1] / totalF : 0.0, const Color(0xFFE65100)),
+          _gaugeRow('Bad', '1★', totalF > 0 ? starCounts[0] / totalF : 0.0, AdminTheme.danger),
         ],
       ),
     );
@@ -408,7 +448,25 @@ class _StatisticsPageState extends State<StatisticsPage>
   }
 
   // ── Performers ───────────────────────────────────────────────────
-  Widget _buildPerformers() {
+  Widget _buildPerformers(List<_PerfRow> perfRows) {
+    if (perfRows.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: AdminTheme.card(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _hdr('Question Performance', 'प्रश्न प्रदर्शन'),
+            const SizedBox(height: 48),
+            const Center(child: Text('No question data available for the selected range.', style: TextStyle(color: AdminTheme.textMuted))),
+          ],
+        ),
+      );
+    }
+    
+    // ensure max 5
+    final displayRows = perfRows.take(5).toList();
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: AdminTheme.card(),
@@ -417,7 +475,7 @@ class _StatisticsPageState extends State<StatisticsPage>
         children: [
           _hdr('Question Performance', 'प्रश्न प्रदर्शन'),
           const SizedBox(height: 16),
-          ..._performers.map((p) {
+          ...displayRows.map((p) {
             final color = p.top ? AdminTheme.success : AdminTheme.danger;
             return Container(
               margin: const EdgeInsets.only(bottom: 12),
@@ -442,14 +500,14 @@ class _StatisticsPageState extends State<StatisticsPage>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          p.hindi,
+                          p.eng,
                           style: const TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AdminTheme.textPrimary,
                           ),
                         ),
-                        Text(p.eng, style: AdminTheme.caption),
+                        Text(p.hindi, style: AdminTheme.caption),
                       ],
                     ),
                   ),
@@ -539,7 +597,14 @@ class _MonthlyPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     if (progress <= 0) return;
-    final maxC = counts.reduce(math.max).toDouble();
+    
+    // Default fallback if max == 0
+    double maxC = 1.0;
+    if (counts.isNotEmpty) {
+      final highC = counts.reduce(math.max).toDouble();
+      if (highC > 0) maxC = highC;
+    }
+
     final n = counts.length;
     final bw = size.width / n;
     final bottom = size.height - 24.0;

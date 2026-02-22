@@ -12,6 +12,7 @@ import 'package:glassmorphism/glassmorphism.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:kiosk/providers/question_provider.dart';
+import 'package:kiosk/providers/feedback_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -25,6 +26,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => QuestionProvider()),
+        ChangeNotifierProvider(create: (_) => FeedbackProvider()),
       ],
       child: const MyApp(),
     ),
