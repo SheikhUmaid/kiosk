@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:kiosk/admin/home.dart';
+import 'package:kiosk/admin/auth_screen.dart';
 import 'package:kiosk/feedback/home.dart';
 import 'package:kiosk/feedback/details.dart';
 import 'package:kiosk/feedback/selfie.dart';
@@ -242,7 +243,7 @@ class _KioskLandingState extends State<KioskLanding>
               label: 'ADMIN',
               sublabel: 'प्रशासन',
               isSecondary: true,
-              onTap: () => _navigateTo(const AdminHome()),
+              onTap: () => _navigateTo(const AuthScreen()),
             ),
           ),
         ],
@@ -270,7 +271,7 @@ class _KioskLandingState extends State<KioskLanding>
               label: 'ADMIN',
               sublabel: 'प्रशासन',
               isSecondary: true,
-              onTap: () => _navigateTo(const AdminHome()),
+              onTap: () => _navigateTo(const AuthScreen()),
             ),
           ),
         ),
@@ -307,13 +308,13 @@ class _KioskLandingState extends State<KioskLanding>
           ClipRRect(
             borderRadius: BorderRadius.circular(baseSize),
             child: Container(
-              width: baseSize,
-              height: baseSize,
-              color: Colors.black,
+              width: baseSize*1,
+              height: baseSize*1,
+              color: Colors.white,
               child: Video(
                 controller: _videoController,
                 controls: NoVideoControls,
-                fill: Colors.black,
+                fill: Colors.white,
                 fit: BoxFit.cover,
               ),
             ),
