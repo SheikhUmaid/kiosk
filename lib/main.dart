@@ -308,14 +308,19 @@ class _KioskLandingState extends State<KioskLanding>
           ClipRRect(
             borderRadius: BorderRadius.circular(baseSize),
             child: Container(
-              width: baseSize * 1,
-              height: baseSize * 1,
+              width: baseSize * 1.1,
+              height: baseSize * 1.1,
               color: Colors.white,
               child: Video(
                 controller: _videoController,
                 controls: NoVideoControls,
                 fill: Colors.white,
+                
+                aspectRatio: 0.7,
                 fit: BoxFit.cover,
+                // height: baseSize*5,
+                // width: baseSize*5,
+
               ),
             ),
           ),
