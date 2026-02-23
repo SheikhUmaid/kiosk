@@ -17,6 +17,7 @@ class FuturisticTheme {
   static const Color surfaceGlass = Color(0x1FFFFFFF); // White 12%
 
   static const List<Color> bgGradient = [bgDark, bgMaroon, bgDark];
+  static const List<Color> bgBlueGradient = [bgBlueDark, bgBlueMid, bgBlueDark];
 
   static const List<Color> goldGradient = [
     Color(0xFFC4A35A),
@@ -24,16 +25,23 @@ class FuturisticTheme {
     Color(0xFFC4A35A),
   ];
 
+  static const List<Color> blueGradient = [
+    Color(0xFF00D1FF),
+    Color(0xFF2979FF),
+    Color(0xFF00D1FF),
+  ];
+
   // Text Styles
-  static TextStyle get titleLarge => GoogleFonts.orbitron(
+  static TextStyle titleLargeCustom(Color color) => GoogleFonts.orbitron(
     fontSize: 48,
     fontWeight: FontWeight.w700,
     color: Colors.white,
     letterSpacing: 2.0,
-    shadows: [
-      const Shadow(color: primaryGold, blurRadius: 10, offset: Offset(0, 0)),
-    ],
+    shadows: [Shadow(color: color, blurRadius: 10, offset: const Offset(0, 0))],
   );
+
+  static TextStyle get titleLarge => titleLargeCustom(primaryGold);
+  static TextStyle get titleLargeBlue => titleLargeCustom(primaryBlue);
 
   static TextStyle get titleMedium => GoogleFonts.orbitron(
     fontSize: 24,
@@ -49,12 +57,15 @@ class FuturisticTheme {
     letterSpacing: 0.5,
   );
 
-  static TextStyle get buttonText => GoogleFonts.orbitron(
+  static TextStyle buttonTextCustom(Color color) => GoogleFonts.orbitron(
     fontSize: 18,
     fontWeight: FontWeight.w700,
-    color: primaryGold,
+    color: color,
     letterSpacing: 1.2,
   );
+
+  static TextStyle get buttonText => buttonTextCustom(primaryGold);
+  static TextStyle get buttonTextBlue => buttonTextCustom(primaryBlue);
 
   // Decorations
   static BoxDecoration glassBox = BoxDecoration(
@@ -70,10 +81,11 @@ class FuturisticTheme {
     ],
   );
 
-  static BoxDecoration frameDecoration(double progress) {
+  static BoxDecoration frameDecoration(double progress, {Color? color}) {
+    final themeColor = color ?? primaryGold;
     return BoxDecoration(
       border: Border.all(
-        color: primaryGold.withOpacity(0.5 + 0.5 * progress),
+        color: themeColor.withOpacity(0.5 + 0.5 * progress),
         width: 1 + progress,
       ),
       borderRadius: BorderRadius.circular(20),
@@ -81,11 +93,11 @@ class FuturisticTheme {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          primaryGold.withOpacity(0.1),
+          themeColor.withOpacity(0.1),
           Colors.transparent,
-          primaryGold.withOpacity(0.1),
+          themeColor.withOpacity(0.1),
         ],
-        stops: [0.0, 0.5, 1.0],
+        stops: const [0.0, 0.5, 1.0],
       ),
     );
   }

@@ -44,8 +44,8 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: FuturisticTheme.bgDark,
-        primaryColor: FuturisticTheme.primaryGold,
+        scaffoldBackgroundColor: FuturisticTheme.bgBlueDark,
+        primaryColor: FuturisticTheme.primaryBlue,
         useMaterial3: true,
       ),
       home: const KioskLanding(),
@@ -158,8 +158,8 @@ class _KioskLandingState extends State<KioskLanding>
                       center: Alignment.center,
                       radius: 1.5,
                       colors: [
-                        FuturisticTheme.bgMaroon,
-                        FuturisticTheme.bgDark,
+                        FuturisticTheme.bgBlueMid,
+                        FuturisticTheme.bgBlueDark,
                         Colors.black,
                       ],
                       stops: [0.0, 0.6, 1.0],
@@ -199,7 +199,7 @@ class _KioskLandingState extends State<KioskLanding>
                                   '342 COY ASC (SUP) Type D',
                                   textAlign: TextAlign.center,
                                   style: FuturisticTheme.body.copyWith(
-                                    color: FuturisticTheme.primaryGold,
+                                    color: FuturisticTheme.primaryBlue,
                                     letterSpacing: width < 400 ? 2.0 : 4.0,
                                     fontSize: width < 400 ? 12 : 16,
                                   ),
@@ -297,7 +297,7 @@ class _KioskLandingState extends State<KioskLanding>
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: FuturisticTheme.primaryGold.withOpacity(0.2),
+                  color: FuturisticTheme.primaryBlue.withOpacity(0.2),
                   blurRadius: 60,
                   spreadRadius: 10,
                 ),
@@ -308,8 +308,8 @@ class _KioskLandingState extends State<KioskLanding>
           ClipRRect(
             borderRadius: BorderRadius.circular(baseSize),
             child: Container(
-              width: baseSize*1,
-              height: baseSize*1,
+              width: baseSize * 1,
+              height: baseSize * 1,
               color: Colors.white,
               child: Video(
                 controller: _videoController,
@@ -327,7 +327,7 @@ class _KioskLandingState extends State<KioskLanding>
               value: 0.7,
               strokeWidth: 2,
               valueColor: AlwaysStoppedAnimation<Color>(
-                FuturisticTheme.primaryGold.withOpacity(0.3),
+                FuturisticTheme.primaryBlue.withOpacity(0.3),
               ),
             ),
           ),
@@ -343,7 +343,7 @@ class _KioskLandingState extends State<KioskLanding>
     return SizedBox(
       height: fontSize * 2.0,
       child: DefaultTextStyle(
-        style: FuturisticTheme.titleLarge.copyWith(fontSize: fontSize),
+        style: FuturisticTheme.titleLargeBlue.copyWith(fontSize: fontSize),
         child: AnimatedTextKit(
           animatedTexts: [
             TypewriterAnimatedText(
@@ -431,7 +431,7 @@ class _FuturisticButtonState extends State<_FuturisticButton> {
               end: Alignment.bottomRight,
               colors: [
                 _isHovered
-                    ? FuturisticTheme.primaryGold
+                    ? FuturisticTheme.primaryBlue
                     : Colors.white.withOpacity(0.5),
                 Colors.white.withOpacity(0.1),
               ],
@@ -443,7 +443,7 @@ class _FuturisticButtonState extends State<_FuturisticButton> {
                   widget.icon,
                   size: 32,
                   color: _isHovered
-                      ? FuturisticTheme.primaryGold
+                      ? FuturisticTheme.primaryBlue
                       : Colors.white,
                 ),
                 const SizedBox(width: 20),
@@ -453,9 +453,9 @@ class _FuturisticButtonState extends State<_FuturisticButton> {
                   children: [
                     Text(
                       widget.label,
-                      style: FuturisticTheme.buttonText.copyWith(
+                      style: FuturisticTheme.buttonTextBlue.copyWith(
                         color: _isHovered
-                            ? FuturisticTheme.primaryGold
+                            ? FuturisticTheme.primaryBlue
                             : Colors.white,
                       ),
                     ),

@@ -97,7 +97,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
 
       // Use the first available camera (usually front-facing)
       final camera = _cameras![0];
-      
+
       const mediaSettings = MediaSettings(
         resolutionPreset: ResolutionPreset.medium,
         fps: 15,
@@ -164,7 +164,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
       // Copy the captured image to the desired location
       await File(image.path).copy(filePath);
       debugPrint('Selfie saved to $filePath');
-      
+
       if (mounted) {
         await context.read<FeedbackProvider>().submitFeedback(filePath);
       }
@@ -190,7 +190,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
   /// Skip selfie — show thank you then landing
   void _skip() async {
     await context.read<FeedbackProvider>().submitFeedback('');
-    
+
     if (mounted) {
       setState(() {
         _showThankYou = true;
@@ -278,7 +278,10 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
                             const KioskLanding(),
                         transitionsBuilder:
                             (context, animation, secondaryAnimation, child) =>
-                                FadeTransition(opacity: animation, child: child),
+                                FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
                         transitionDuration: const Duration(milliseconds: 700),
                       ),
                       (route) => false,
@@ -435,10 +438,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
 
   Widget _buildPreviewContent() {
     if (_capturedImage != null) {
-      return Image.file(
-        File(_capturedImage!.path),
-        fit: BoxFit.cover,
-      );
+      return Image.file(File(_capturedImage!.path), fit: BoxFit.cover);
     }
 
     if (_isCameraInitialized && _cameraId >= 0) {
@@ -756,18 +756,25 @@ class _ArmyThankYouOverlayState extends State<ArmyThankYouOverlay>
   void initState() {
     super.initState();
     _entranceController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
     _scaleAnimation = CurvedAnimation(
-        parent: _entranceController, curve: Curves.elasticOut);
+      parent: _entranceController,
+      curve: Curves.elasticOut,
+    );
     _fadeAnimation = CurvedAnimation(
-        parent: _entranceController,
-        curve: const Interval(0.2, 1.0, curve: Curves.easeIn));
+      parent: _entranceController,
+      curve: const Interval(0.2, 1.0, curve: Curves.easeIn),
+    );
 
     _pulseController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000))
-      ..repeat(reverse: true);
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 1.0, end: 1.1).animate(
-        CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut));
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
 
     _entranceController.forward();
 
@@ -810,14 +817,14 @@ class _ArmyThankYouOverlayState extends State<ArmyThankYouOverlay>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: FuturisticTheme.primaryGold.withOpacity(0.4),
+                          color: FuturisticTheme.primaryBlue.withOpacity(0.4),
                           blurRadius: 50,
                           spreadRadius: 10,
-                        )
+                        ),
                       ],
                       gradient: RadialGradient(
                         colors: [
-                          FuturisticTheme.primaryGold.withOpacity(0.4),
+                          FuturisticTheme.primaryBlue.withOpacity(0.4),
                           Colors.transparent,
                         ],
                         stops: const [0.5, 1.0],
@@ -826,7 +833,7 @@ class _ArmyThankYouOverlayState extends State<ArmyThankYouOverlay>
                     child: const Icon(
                       Icons.military_tech,
                       size: 150,
-                      color: FuturisticTheme.primaryGold,
+                      color: FuturisticTheme.primaryBlue,
                     ),
                   ),
                 ),
@@ -839,7 +846,7 @@ class _ArmyThankYouOverlayState extends State<ArmyThankYouOverlay>
                     Text(
                       'FEEDBACK RECORDED',
                       style: FuturisticTheme.titleLarge.copyWith(
-                        color: FuturisticTheme.primaryGold,
+                        color: FuturisticTheme.primaryBlue,
                         fontSize: 28,
                         letterSpacing: 4,
                       ),
@@ -857,7 +864,7 @@ class _ArmyThankYouOverlayState extends State<ArmyThankYouOverlay>
                           Shadow(
                             color: Colors.white.withOpacity(0.5),
                             blurRadius: 20,
-                          )
+                          ),
                         ],
                       ),
                       textAlign: TextAlign.center,
