@@ -18,6 +18,7 @@ class DownloadPage extends StatefulWidget {
 class _DownloadPageState extends State<DownloadPage> {
   String _selectedFormat = 'CSV';
   DateTimeRange? _selectedDateRange;
+  String? _selectedUnit;
   List<FileSystemEntity> _recentExports = [];
 
   @override
@@ -32,7 +33,9 @@ class _DownloadPageState extends State<DownloadPage> {
       final kioskDir = Directory('${dbPath.path}/kiosk_exports');
       if (await kioskDir.exists()) {
         final List<FileSystemEntity> entities = await kioskDir.list().toList();
-        entities.sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+        entities.sort(
+          (a, b) => b.statSync().modified.compareTo(a.statSync().modified),
+        );
         setState(() {
           _recentExports = entities.take(5).toList();
         });
@@ -45,7 +48,10 @@ class _DownloadPageState extends State<DownloadPage> {
   Future<void> _generateReport() async {
     if (_selectedDateRange == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a date range first'), backgroundColor: AdminTheme.danger),
+        const SnackBar(
+          content: Text('Please select a date range first'),
+          backgroundColor: AdminTheme.danger,
+        ),
       );
       return;
     }
@@ -55,18 +61,30 @@ class _DownloadPageState extends State<DownloadPage> {
 
     // Filter by date
     final start = _selectedDateRange!.start;
-    final end = _selectedDateRange!.end.add(const Duration(hours: 23, minutes: 59, seconds: 59));
-    
+    final end = _selectedDateRange!.end.add(
+      const Duration(hours: 23, minutes: 59, seconds: 59),
+    );
+
     final filteredFbs = allFbs.where((f) {
       if (f['timestamp'] == null) return false;
       final dt = DateTime.parse(f['timestamp']).toLocal();
-      return dt.isAfter(start) && dt.isBefore(end);
+      bool dateMatch = dt.isAfter(start) && dt.isBefore(end);
+
+      bool unitMatch = true;
+      if (_selectedUnit != null && _selectedUnit != 'All Units') {
+        unitMatch = f['unitNumber'] == _selectedUnit;
+      }
+
+      return dateMatch && unitMatch;
     }).toList();
 
     if (filteredFbs.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No feedback found in this date range.'), backgroundColor: AdminTheme.warning),
+          const SnackBar(
+            content: Text('No feedback found in this date range.'),
+            backgroundColor: AdminTheme.warning,
+          ),
         );
       }
       return;
@@ -75,46 +93,60 @@ class _DownloadPageState extends State<DownloadPage> {
     // Prepare header row
     List<String> qHeaders = [];
     if (filteredFbs.isNotEmpty) {
-       for (var f in filteredFbs) {
-          if (f['answers'] != null) {
-             try {
-               final dec = jsonDecode(f['answers']) as Map<String, dynamic>;
-               for (var k in dec.keys) {
-                  if (!qHeaders.contains(k)) qHeaders.add(k);
-               }
-             } catch(_) {}
-          }
-       }
+      for (var f in filteredFbs) {
+        if (f['answers'] != null) {
+          try {
+            final dec = jsonDecode(f['answers']) as Map<String, dynamic>;
+            for (var k in dec.keys) {
+              if (!qHeaders.contains(k)) qHeaders.add(k);
+            }
+          } catch (_) {}
+        }
+      }
     }
-    List<String> headers = ['ID', 'Date', 'Time', 'First Name', 'Last Name', 'Phone', 'Unit Number', 'Remarks', ...qHeaders];
+    List<String> headers = [
+      'ID',
+      'Date',
+      'Time',
+      'First Name',
+      'Last Name',
+      'Phone',
+      'Unit Number',
+      'Remarks',
+      ...qHeaders,
+    ];
 
     // Prepare row data
     List<List<dynamic>> rows = [headers];
     for (var f in filteredFbs) {
-       DateTime dt = DateTime.parse(f['timestamp']!).toLocal();
-       String dateStr = "${dt.day.toString().padLeft(2,'0')}-${dt.month.toString().padLeft(2,'0')}-${dt.year}";
-       String timeStr = "${dt.hour.toString().padLeft(2,'0')}:${dt.minute.toString().padLeft(2,'0')}";
-       
-       Map<String, dynamic> ans = {};
-       if (f['answers'] != null) {
-         try { ans = jsonDecode(f['answers']); } catch(_) {}
-       }
+      DateTime dt = DateTime.parse(f['timestamp']!).toLocal();
+      String dateStr =
+          "${dt.day.toString().padLeft(2, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.year}";
+      String timeStr =
+          "${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}";
 
-       List<dynamic> row = [
-         f['id'],
-         dateStr,
-         timeStr,
-         f['firstName'] ?? '',
-         f['lastName'] ?? '',
-         f['phone'] ?? '',
-         f['unitNumber'] ?? '',
-         f['remarks'] ?? '',
-       ];
+      Map<String, dynamic> ans = {};
+      if (f['answers'] != null) {
+        try {
+          ans = jsonDecode(f['answers']);
+        } catch (_) {}
+      }
 
-       for (var h in qHeaders) {
-          row.add(ans[h] ?? '');
-       }
-       rows.add(row);
+      List<dynamic> row = [
+        f['id'],
+        dateStr,
+        timeStr,
+        f['firstName'] ?? '',
+        f['lastName'] ?? '',
+        f['phone'] ?? '',
+        f['unitNumber'] ?? '',
+        f['remarks'] ?? '',
+      ];
+
+      for (var h in qHeaders) {
+        row.add(ans[h] ?? '');
+      }
+      rows.add(row);
     }
 
     // Save logic
@@ -122,11 +154,16 @@ class _DownloadPageState extends State<DownloadPage> {
       final dPath = await getApplicationDocumentsDirectory();
       final kDir = Directory('${dPath.path}/kiosk_exports');
       if (!(await kDir.exists())) {
-         await kDir.create(recursive: true);
+        await kDir.create(recursive: true);
       }
 
-      String fileName = 'Feedback_${start.year}${start.month}${start.day}_to_${end.year}${end.month}${end.day}';
-      
+      String unitSuffix =
+          (_selectedUnit != null && _selectedUnit != 'All Units')
+          ? '_Unit_$_selectedUnit'
+          : '';
+      String fileName =
+          'Feedback_${start.year}${start.month}${start.day}_to_${end.year}${end.month}${end.day}$unitSuffix';
+
       if (_selectedFormat == 'CSV') {
         String csvText = CsvCodec().encode(rows);
         final file = File('${kDir.path}/$fileName.csv');
@@ -136,11 +173,13 @@ class _DownloadPageState extends State<DownloadPage> {
         var excel = Excel.createExcel();
         Sheet sheetObject = excel['Feedbacks'];
         excel.setDefaultSheet('Feedbacks');
-        
-        for (int i=0; i<rows.length; i++) {
-           sheetObject.appendRow(rows[i].map((e) => TextCellValue(e.toString())).toList());
+
+        for (int i = 0; i < rows.length; i++) {
+          sheetObject.appendRow(
+            rows[i].map((e) => TextCellValue(e.toString())).toList(),
+          );
         }
-        
+
         final fileBytes = excel.save();
         if (fileBytes != null) {
           final file = File('${kDir.path}/$fileName.xlsx');
@@ -148,18 +187,23 @@ class _DownloadPageState extends State<DownloadPage> {
           _showSuccess(file.path);
         }
       } else if (_selectedFormat == 'PDF') {
-         // Placeholder for PDF implementation
-         if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('PDF generation coming soon!'), backgroundColor: AdminTheme.accent),
-            );
-         }
+        // Placeholder for PDF implementation
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF generation coming soon!'),
+              backgroundColor: AdminTheme.accent,
+            ),
+          );
+        }
       }
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e'), backgroundColor: AdminTheme.danger),
+          SnackBar(
+            content: Text('Export failed: $e'),
+            backgroundColor: AdminTheme.danger,
+          ),
         );
       }
     }
@@ -168,7 +212,11 @@ class _DownloadPageState extends State<DownloadPage> {
   void _showSuccess(String path) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Saved to: $path'), backgroundColor: AdminTheme.success, duration: const Duration(seconds: 4)),
+        SnackBar(
+          content: Text('Saved to: $path'),
+          backgroundColor: AdminTheme.success,
+          duration: const Duration(seconds: 4),
+        ),
       );
       _loadRecentExports(); // refresh UI
     }
@@ -268,6 +316,52 @@ class _DownloadPageState extends State<DownloadPage> {
                   ),
                 ),
                 const SizedBox(height: 32),
+                _buildOptionLabel(
+                  'Filter by Unit Number',
+                  'यूनिट नंबर द्वारा फ़िल्टर करें',
+                ),
+                const SizedBox(height: 12),
+                Consumer<FeedbackProvider>(
+                  builder: (context, provider, child) {
+                    final units = provider.feedbacks
+                        .map((f) => f['unitNumber'] as String?)
+                        .where((u) => u != null && u.isNotEmpty)
+                        .toSet()
+                        .toList();
+                    units.sort();
+
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AdminTheme.border),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedUnit ?? 'All Units',
+                          isExpanded: true,
+                          hint: const Text('Select Unit'),
+                          items: [
+                            const DropdownMenuItem(
+                              value: 'All Units',
+                              child: Text('All Units'),
+                            ),
+                            ...units.map(
+                              (u) =>
+                                  DropdownMenuItem(value: u, child: Text(u!)),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            setState(() {
+                              _selectedUnit = val;
+                            });
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 32),
                 _buildOptionLabel('Export Format', 'निर्यात प्रारूप'),
                 const SizedBox(height: 12),
                 Row(
@@ -341,59 +435,68 @@ class _DownloadPageState extends State<DownloadPage> {
         const Text('Recent Exports', style: AdminTheme.sectionTitle),
         const SizedBox(height: 12),
         if (_recentExports.isEmpty)
-           Container(
-             width: double.infinity,
-             padding: const EdgeInsets.all(24),
-             decoration: AdminTheme.card(),
-             child: const Center(child: Text("No exports generated yet.", style: TextStyle(color: AdminTheme.textMuted)))
-           )
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: AdminTheme.card(),
+            child: const Center(
+              child: Text(
+                "No exports generated yet.",
+                style: TextStyle(color: AdminTheme.textMuted),
+              ),
+            ),
+          )
         else
-        Container(
-          decoration: AdminTheme.card(),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _recentExports.length,
-            separatorBuilder: (_, __) =>
-                const Divider(height: 1, color: AdminTheme.border),
-            itemBuilder: (_, i) {
-              final file = _recentExports[i];
-              final name = file.path.split(Platform.pathSeparator).last;
-              final size = (File(file.path).lengthSync() / 1024).toStringAsFixed(1) + ' KB';
-              return ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AdminTheme.primaryXLight,
-                    borderRadius: BorderRadius.circular(8),
+          Container(
+            decoration: AdminTheme.card(),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _recentExports.length,
+              separatorBuilder: (_, __) =>
+                  const Divider(height: 1, color: AdminTheme.border),
+              itemBuilder: (_, i) {
+                final file = _recentExports[i];
+                final name = file.path.split(Platform.pathSeparator).last;
+                final size =
+                    (File(file.path).lengthSync() / 1024).toStringAsFixed(1) +
+                    ' KB';
+                return ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AdminTheme.primaryXLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.file_present_rounded,
+                      color: AdminTheme.primary,
+                      size: 20,
+                    ),
                   ),
-                  child: const Icon(
-                    Icons.file_present_rounded,
-                    color: AdminTheme.primary,
-                    size: 20,
+                  title: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                title: Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  subtitle: Text('Size: $size', style: AdminTheme.caption),
+                  trailing: TextButton(
+                    onPressed: () {
+                      // Since they are already on machine disk, we can notify the user of the path
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('File located at: ${file.path}'),
+                        ),
+                      );
+                    },
+                    child: const Text('Show Path'),
                   ),
-                ),
-                subtitle: Text('Size: $size', style: AdminTheme.caption),
-                trailing: TextButton(
-                  onPressed: () {
-                     // Since they are already on machine disk, we can notify the user of the path
-                     ScaffoldMessenger.of(context).showSnackBar(
-                       SnackBar(content: Text('File located at: ${file.path}')),
-                     );
-                  },
-                  child: const Text('Show Path'),
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }
