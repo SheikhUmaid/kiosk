@@ -310,11 +310,11 @@ class _KioskLandingState extends State<KioskLanding>
             child: Container(
               width: baseSize * 1.1,
               height: baseSize * 1.1,
-              color: Colors.white,
+              color: Colors.black,
               child: Video(
                 controller: _videoController,
                 controls: NoVideoControls,
-                fill: Colors.white,
+                fill: Colors.black,
                 
                 aspectRatio: 0.7,
                 fit: BoxFit.cover,
