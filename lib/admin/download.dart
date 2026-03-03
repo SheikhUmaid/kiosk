@@ -19,12 +19,21 @@ class _DownloadPageState extends State<DownloadPage> {
   String _selectedFormat = 'CSV';
   DateTimeRange? _selectedDateRange;
   String? _selectedUnit;
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
   List<FileSystemEntity> _recentExports = [];
 
   @override
   void initState() {
     super.initState();
     _loadRecentExports();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadRecentExports() async {
@@ -65,6 +74,9 @@ class _DownloadPageState extends State<DownloadPage> {
       const Duration(hours: 23, minutes: 59, seconds: 59),
     );
 
+    final nameQuery = _nameController.text.trim().toLowerCase();
+    final phoneQuery = _phoneController.text.trim().toLowerCase();
+
     final filteredFbs = allFbs.where((f) {
       if (f['timestamp'] == null) return false;
       final dt = DateTime.parse(f['timestamp']).toLocal();
@@ -75,7 +87,21 @@ class _DownloadPageState extends State<DownloadPage> {
         unitMatch = f['unitNumber'] == _selectedUnit;
       }
 
-      return dateMatch && unitMatch;
+      bool nameMatch = true;
+      if (nameQuery.isNotEmpty) {
+        final firstName = (f['firstName'] ?? '').toString().toLowerCase();
+        final lastName  = (f['lastName']  ?? '').toString().toLowerCase();
+        nameMatch = firstName.contains(nameQuery) || lastName.contains(nameQuery) ||
+                    '$firstName $lastName'.contains(nameQuery);
+      }
+
+      bool phoneMatch = true;
+      if (phoneQuery.isNotEmpty) {
+        final phone = (f['phone'] ?? '').toString().toLowerCase();
+        phoneMatch = phone.contains(phoneQuery);
+      }
+
+      return dateMatch && unitMatch && nameMatch && phoneMatch;
     }).toList();
 
     if (filteredFbs.isEmpty) {
@@ -360,6 +386,87 @@ class _DownloadPageState extends State<DownloadPage> {
                       ),
                     );
                   },
+                ),
+                const SizedBox(height: 32),
+                _buildOptionLabel(
+                  'Filter by Name',
+                  'नाम द्वारा फ़िल्टर करें',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _nameController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: 'Search by first or last name...',
+                    hintStyle: const TextStyle(color: AdminTheme.textMuted),
+                    prefixIcon: const Icon(
+                      Icons.person_search_outlined,
+                      color: AdminTheme.textSecondary,
+                    ),
+                    suffixIcon: _nameController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear,
+                                color: AdminTheme.textSecondary),
+                            onPressed: () {
+                              _nameController.clear();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AdminTheme.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                          color: AdminTheme.primary, width: 2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                _buildOptionLabel(
+                  'Filter by Phone Number',
+                  'फ़ोन नंबर द्वारा फ़िल्टर करें',
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _phoneController,
+                  onChanged: (_) => setState(() {}),
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    hintText: 'Search by phone number...',
+                    hintStyle: const TextStyle(color: AdminTheme.textMuted),
+                    prefixIcon: const Icon(
+                      Icons.phone_outlined,
+                      color: AdminTheme.textSecondary,
+                    ),
+                    suffixIcon: _phoneController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear,
+                                color: AdminTheme.textSecondary),
+                            onPressed: () {
+                              _phoneController.clear();
+                              setState(() {});
+                            },
+                          )
+                        : null,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AdminTheme.border),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                          color: AdminTheme.primary, width: 2),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 32),
                 _buildOptionLabel('Export Format', 'निर्यात प्रारूप'),

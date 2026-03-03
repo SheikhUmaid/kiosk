@@ -513,7 +513,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
         GestureDetector(
           onTap: _retake,
           child: GlassmorphicContainer(
-            width: 160,
+            width: 220,
             height: 50,
             borderRadius: 25,
             blur: 20,
@@ -539,7 +539,7 @@ class _TakeSelfiePageState extends State<TakeSelfiePage>
         GestureDetector(
           onTap: _submit,
           child: GlassmorphicContainer(
-            width: 160,
+            width: 220,
             height: 50,
             borderRadius: 25,
             blur: 20,

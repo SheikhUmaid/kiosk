@@ -14,6 +14,8 @@ import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:provider/provider.dart';
 import 'package:kiosk/providers/question_provider.dart';
 import 'package:kiosk/providers/feedback_provider.dart';
+import 'package:kiosk/providers/system_provider.dart';
+import 'package:kiosk/installation_screen.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 void main() {
@@ -28,6 +30,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => QuestionProvider()),
         ChangeNotifierProvider(create: (_) => FeedbackProvider()),
+        ChangeNotifierProvider(create: (_) => SystemProvider()),
       ],
       child: const MyApp(),
     ),
@@ -48,7 +51,17 @@ class MyApp extends StatelessWidget {
         primaryColor: FuturisticTheme.primaryBlue,
         useMaterial3: true,
       ),
-      home: const KioskLanding(),
+      home: Consumer<SystemProvider>(
+        builder: (context, system, child) {
+          if (!system.isInitialized) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (!system.isInstalled) {
+            return const InstallationScreen();
+          }
+          return const KioskLanding();
+        },
+      ),
     );
   }
 }
@@ -195,13 +208,15 @@ class _KioskLandingState extends State<KioskLanding>
                                 // Animated Text
                                 _buildWelcomeText(isLandscape, width),
                                 const SizedBox(height: 10),
-                                Text(
-                                  '342 COY ASC (SUP) Type D',
-                                  textAlign: TextAlign.center,
-                                  style: FuturisticTheme.body.copyWith(
-                                    color: FuturisticTheme.primaryBlue,
-                                    letterSpacing: width < 400 ? 2.0 : 4.0,
-                                    fontSize: width < 400 ? 12 : 16,
+                                Consumer<SystemProvider>(
+                                  builder: (context, system, child) => Text(
+                                    system.unitName.toUpperCase(),
+                                    textAlign: TextAlign.center,
+                                    style: FuturisticTheme.body.copyWith(
+                                      color: FuturisticTheme.primaryBlue,
+                                      letterSpacing: width < 400 ? 2.0 : 4.0,
+                                      fontSize: width < 400 ? 12 : 16,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 20),
