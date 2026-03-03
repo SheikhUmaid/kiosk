@@ -62,13 +62,13 @@ class _FeedBackHomeState extends State<FeedBackHome>
   final List<_FeedbackOption> _options = const [
     _FeedbackOption(
       asset: 'assets/emojis/em_angry.png',
-      label: 'VERY BAD',
+      label: 'VERY POOR',
       value: 1,
     ),
-    _FeedbackOption(asset: 'assets/emojis/em_sad.png', label: 'BAD', value: 2),
+    _FeedbackOption(asset: 'assets/emojis/em_sad.png', label: 'POOR', value: 2),
     _FeedbackOption(
       asset: 'assets/emojis/em_neutral.png',
-      label: 'OKAY',
+      label: 'FAIR',
       value: 3,
     ),
     _FeedbackOption(

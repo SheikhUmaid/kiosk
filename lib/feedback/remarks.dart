@@ -402,24 +402,25 @@ class _FeedBackRemarksState extends State<FeedBackRemarks>
                       ),
                       const SizedBox(height: 8),
                       Expanded(
-                        child: IgnorePointer(
-                          child: TextField(
-                            controller: controller,
-                            focusNode: focusNode,
-                            readOnly: true, // Prevent system keyboard
-                            maxLines: null,
-                            expands: true,
-                            style: FuturisticTheme.body.copyWith(
-                              fontSize: 18,
-                              color: Colors.white,
-                            ),
-                            decoration: InputDecoration(
-                              border: InputBorder.none,
-                              hintText: hint,
-                              hintStyle: const TextStyle(color: Colors.white24),
-                              isDense: true,
-                              contentPadding: EdgeInsets.zero,
-                            ),
+                        child: TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          readOnly: false,
+                          showCursor: true,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _onDone(),
+                          maxLines: null,
+                          expands: true,
+                          style: FuturisticTheme.body.copyWith(
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
+                          decoration: InputDecoration(
+                            border: InputBorder.none,
+                            hintText: hint,
+                            hintStyle: const TextStyle(color: Colors.white24),
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
                           ),
                         ),
                       ),

@@ -463,22 +463,23 @@ class _FeedBackDetailsState extends State<FeedBackDetails>
                       const SizedBox(height: 4),
                       // Hide default cursor, handle manually through keyboard if needed or trust Flutter's hidden input
                       // Actually we use readOnly: true and custom keyboard
-                      IgnorePointer(
-                        child: TextField(
-                          controller: controller,
-                          focusNode: focusNode, // Keep focus for state
-                          readOnly: true, // Prevent system keyboard
-                          style: FuturisticTheme.body.copyWith(
-                            fontSize: 18,
-                            color: Colors.white,
-                          ),
-                          decoration: InputDecoration(
-                            border: InputBorder.none,
-                            hintText: hint,
-                            hintStyle: const TextStyle(color: Colors.white24),
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                          ),
+                      TextField(
+                        controller: controller,
+                        focusNode: focusNode, // Keep focus for state
+                        readOnly: false, 
+                        showCursor: true,
+                        textInputAction: index < 3 ? TextInputAction.next : TextInputAction.done,
+                        onSubmitted: (_) => _onDone(),
+                        style: FuturisticTheme.body.copyWith(
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
+                        decoration: InputDecoration(
+                          border: InputBorder.none,
+                          hintText: hint,
+                          hintStyle: const TextStyle(color: Colors.white24),
+                          isDense: true,
+                          contentPadding: EdgeInsets.zero,
                         ),
                       ),
                     ],
