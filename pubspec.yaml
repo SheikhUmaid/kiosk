@@ -51,6 +51,7 @@ dependencies:
   excel: ^4.0.6
   shared_preferences: ^2.5.4
   url_launcher: ^6.3.2
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

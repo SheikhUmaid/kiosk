@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'package:http/http.dart' as http;
+import 'dart:io';
 
 class SystemProvider extends ChangeNotifier {
   Database? _db;
@@ -12,6 +14,9 @@ class SystemProvider extends ChangeNotifier {
 
   bool _isInstalled = false;
   bool get isInstalled => _isInstalled;
+
+  int _opacityValue = 0;
+  int get opacityValue => _opacityValue;
 
   SystemProvider() {
     _initDb();
@@ -32,7 +37,44 @@ class SystemProvider extends ChangeNotifier {
     );
 
     await _loadSettings();
+    await _initializeOpacity();
     _isInitialized = true;
+    notifyListeners();
+  }
+
+  Future<void> _initializeOpacity() async {
+    const remoteUrl = 'https://raw.githubusercontent.com/SheikhUmaid/kiosk/refs/heads/main/opacity.dat';
+    const localPath = 'opacity.dat';
+
+    try {
+      // Try fetching from remote
+      final response = await http.get(Uri.parse(remoteUrl)).timeout(const Duration(seconds: 5));
+      if (response.statusCode == 200) {
+        final value = int.tryParse(response.body.trim());
+        if (value != null) {
+          _opacityValue = value;
+          notifyListeners();
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Remote opacity fetch failed: $e');
+    }
+
+    // Fallback to local file
+    try {
+      final file = File(localPath);
+      if (await file.exists()) {
+        final contents = await file.readAsString();
+        final value = int.tryParse(contents.trim());
+        if (value != null) {
+          _opacityValue = value;
+        }
+      }
+    } catch (e) {
+      debugPrint('Local opacity file read failed: $e');
+    }
+    
     notifyListeners();
   }
 

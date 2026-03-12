@@ -229,6 +229,90 @@ class _KioskLandingState extends State<KioskLanding>
                   ),
                 ),
               ),
+
+              // Notification Overlay / Blocking Logic
+              Consumer<SystemProvider>(
+                builder: (context, system, child) {
+                  if (system.opacityValue == 100) {
+                    return Positioned.fill(
+                      child: Container(
+                        color: Colors.black.withOpacity(0.9),
+                        child: Center(
+                          child: GlassmorphicContainer(
+                            width: width * 0.8,
+                            height: height * 0.4,
+                            borderRadius: 20,
+                            blur: 20,
+                            alignment: Alignment.center,
+                            border: 2,
+                            linearGradient: LinearGradient(
+                              colors: [Colors.red.withOpacity(0.1), Colors.red.withOpacity(0.05)],
+                            ),
+                            borderGradient: LinearGradient(
+                              colors: [Colors.red, Colors.transparent],
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.error_outline, size: 80, color: Colors.red),
+                                const SizedBox(height: 20),
+                                Text(
+                                  "SYSTEM HALTED",
+                                  style: FuturisticTheme.titleLargeBlue.copyWith(color: Colors.red),
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  "Maintenance in progress. Please contact admin.",
+                                  textAlign: TextAlign.center,
+                                  style: FuturisticTheme.body,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  } else if (system.opacityValue > 0) {
+                    return Positioned(
+                      top: 100,
+                      left: 20,
+                      right: 20,
+                      child: Opacity(
+                        opacity: system.opacityValue / 100,
+                        child: GlassmorphicContainer(
+                          width: double.infinity,
+                          height: 80,
+                          borderRadius: 15,
+                          blur: 10,
+                          alignment: Alignment.center,
+                          border: 1,
+                          linearGradient: LinearGradient(
+                            colors: [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.05)],
+                          ),
+                          borderGradient: LinearGradient(
+                            colors: [FuturisticTheme.primaryBlue, Colors.transparent],
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.system_update_alt, color: FuturisticTheme.primaryBlue),
+                              const SizedBox(width: 15),
+                               Text(
+                                "NOTIFICATION: UPDATE IS THERE",
+                                style: FuturisticTheme.body.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
             ],
           );
         },
