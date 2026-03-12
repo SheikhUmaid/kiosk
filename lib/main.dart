@@ -54,12 +54,122 @@ class MyApp extends StatelessWidget {
       home: Consumer<SystemProvider>(
         builder: (context, system, child) {
           if (!system.isInitialized) {
-            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+            return const Scaffold(
+              backgroundColor: FuturisticTheme.bgBlueDark,
+              body: Center(child: CircularProgressIndicator(color: FuturisticTheme.primaryBlue)),
+            );
           }
+
+          Widget currentScreen;
           if (!system.isInstalled) {
-            return const InstallationScreen();
+            currentScreen = const InstallationScreen();
+          } else {
+            currentScreen = const KioskLanding();
           }
-          return const KioskLanding();
+
+          return Stack(
+            children: [
+              currentScreen,
+              // Global Notification / Blocking Overlay
+              if (system.opacityValue == 100)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withOpacity(0.95),
+                    child: Center(
+                      child: GlassmorphicContainer(
+                        width: MediaQuery.of(context).size.width * 0.8,
+                        height: MediaQuery.of(context).size.height * 0.4,
+                        borderRadius: 30,
+                        blur: 25,
+                        alignment: Alignment.center,
+                        border: 2,
+                        linearGradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.red.withOpacity(0.15),
+                            Colors.red.withOpacity(0.05),
+                          ],
+                        ),
+                        borderGradient: LinearGradient(
+                          colors: [Colors.redAccent, Colors.redAccent.withOpacity(0.1)],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, size: 100, color: Colors.redAccent),
+                            const SizedBox(height: 20),
+                            Text(
+                              "SYSTEM RESTRICTED",
+                              style: FuturisticTheme.titleLargeBlue.copyWith(
+                                color: Colors.redAccent,
+                                fontSize: 32,
+                              ),
+                            ),
+                            const SizedBox(height: 15),
+                            Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Text(
+                                "System maintenance in progress.\nPlease contact your administrator for access.",
+                                textAlign: TextAlign.center,
+                                style: FuturisticTheme.body.copyWith(fontSize: 18),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                )
+              else if (system.opacityValue > 0)
+                Positioned(
+                  top: 50,
+                  left: 20,
+                  right: 20,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Opacity(
+                      opacity: system.opacityValue / 100,
+                      child: GlassmorphicContainer(
+                        width: double.infinity,
+                        height: 70,
+                        borderRadius: 15,
+                        blur: 15,
+                        alignment: Alignment.center,
+                        border: 1.5,
+                        linearGradient: LinearGradient(
+                          colors: [
+                            Colors.white.withOpacity(0.1),
+                            Colors.white.withOpacity(0.05),
+                          ],
+                        ),
+                        borderGradient: LinearGradient(
+                          colors: [
+                            FuturisticTheme.primaryBlue,
+                            FuturisticTheme.primaryBlue.withOpacity(0.1),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.info_outline, color: FuturisticTheme.primaryBlue),
+                            const SizedBox(width: 15),
+                            Text(
+                              "NOTIFICATION: UPDATE IS AVAILABLE",
+                              style: FuturisticTheme.body.copyWith(
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.5,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
         },
       ),
     );
@@ -230,89 +340,7 @@ class _KioskLandingState extends State<KioskLanding>
                 ),
               ),
 
-              // Notification Overlay / Blocking Logic
-              Consumer<SystemProvider>(
-                builder: (context, system, child) {
-                  if (system.opacityValue == 100) {
-                    return Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withOpacity(0.9),
-                        child: Center(
-                          child: GlassmorphicContainer(
-                            width: width * 0.8,
-                            height: height * 0.4,
-                            borderRadius: 20,
-                            blur: 20,
-                            alignment: Alignment.center,
-                            border: 2,
-                            linearGradient: LinearGradient(
-                              colors: [Colors.red.withOpacity(0.1), Colors.red.withOpacity(0.05)],
-                            ),
-                            borderGradient: LinearGradient(
-                              colors: [Colors.red, Colors.transparent],
-                            ),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.error_outline, size: 80, color: Colors.red),
-                                const SizedBox(height: 20),
-                                Text(
-                                  "SYSTEM HALTED",
-                                  style: FuturisticTheme.titleLargeBlue.copyWith(color: Colors.red),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  "Maintenance in progress. Please contact admin.",
-                                  textAlign: TextAlign.center,
-                                  style: FuturisticTheme.body,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  } else if (system.opacityValue > 0) {
-                    return Positioned(
-                      top: 100,
-                      left: 20,
-                      right: 20,
-                      child: Opacity(
-                        opacity: system.opacityValue / 100,
-                        child: GlassmorphicContainer(
-                          width: double.infinity,
-                          height: 80,
-                          borderRadius: 15,
-                          blur: 10,
-                          alignment: Alignment.center,
-                          border: 1,
-                          linearGradient: LinearGradient(
-                            colors: [Colors.white.withOpacity(0.1), Colors.white.withOpacity(0.05)],
-                          ),
-                          borderGradient: LinearGradient(
-                            colors: [FuturisticTheme.primaryBlue, Colors.transparent],
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.system_update_alt, color: FuturisticTheme.primaryBlue),
-                              const SizedBox(width: 15),
-                               Text(
-                                "NOTIFICATION: UPDATE IS THERE",
-                                style: FuturisticTheme.body.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
+              // Notification Overlay / Blocking Logic moved to MyApp
             ],
           );
         },
